@@ -68,7 +68,7 @@ export default function BookingDetailsScreen() {
   const { showError, showSuccess, showInfo } = useAlertContext();
   const { id } = useLocalSearchParams();
   const router = useRouter();
-  const { bookings, clients, refreshBookingsData } = useAgentStore();
+  const { agent, bookings, clients, refreshBookingsData } = useAgentStore();
   const ticketDesignRef = useRef<any>(null);
   const imageGenerationTicketRef = useRef<any>(null);
   const [showTicketPopup, setShowTicketPopup] = useState(false);
@@ -106,6 +106,9 @@ export default function BookingDetailsScreen() {
   const [autoCancelTriggered, setAutoCancelTriggered] = useState(false);
   const [showCancelConfirmModal, setShowCancelConfirmModal] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [cancellationInfo, setCancellationInfo] = useState<{
+    refundAmount: number;
+  } | null>(null);
 
   // Validate payment session on app resume and clear expired sessions
   usePaymentSessionValidator();
@@ -127,6 +130,38 @@ export default function BookingDetailsScreen() {
     booking: convertedBooking as any,
     isFromModification: (booking as any)?.isFromModification || false,
   });
+
+  // Load cancellation / refund info when booking is cancelled
+  useEffect(() => {
+    const loadCancellationInfo = async () => {
+      if (!booking || booking.status !== 'cancelled') {
+        setCancellationInfo(null);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('cancellations')
+          .select('refund_amount')
+          .eq('booking_id', booking.id)
+          .maybeSingle();
+
+        if (!error && data && typeof data.refund_amount === 'number') {
+          setCancellationInfo({ refundAmount: Number(data.refund_amount) });
+        } else {
+          setCancellationInfo(null);
+        }
+      } catch (loadError) {
+        console.warn(
+          '[Agent Booking] Failed to load cancellation/refund info:',
+          loadError
+        );
+        setCancellationInfo(null);
+      }
+    };
+
+    loadCancellationInfo();
+  }, [booking?.id, booking?.status]);
 
   // Re-check booking status to ensure it's still pending (handles auto-cancellation)
   const [actualBookingStatus, setActualBookingStatus] = useState<string | null>(
@@ -688,6 +723,9 @@ export default function BookingDetailsScreen() {
 
   const shouldShowResumeBanner =
     !!paymentSession &&
+    // Only show banner if the session belongs to the currently logged-in agent
+    !!agent?.id &&
+    paymentSession.userId === agent.id &&
     !showPaymentModal &&
     resumeBannerExpiry !== null &&
     !resumeBannerExpiry.isExpired &&
@@ -696,6 +734,12 @@ export default function BookingDetailsScreen() {
 
   // Monitor payment session expiry
   useEffect(() => {
+    // Clear any session that belongs to a different agent
+    if (paymentSession && agent?.id && paymentSession.userId !== agent.id) {
+      clearPaymentSession();
+      return;
+    }
+
     if (
       !booking ||
       !paymentSession ||
@@ -1172,8 +1216,8 @@ export default function BookingDetailsScreen() {
           />
         )}
 
-        {/* Payment Pending Card */}
-        {isPaymentPending && (
+        {/* Payment Pending Card (only when there is no active resume banner) */}
+        {isPaymentPending && !shouldShowResumeBanner && (
           <Card variant='elevated' style={styles.paymentPendingCard}>
             <View style={styles.paymentPendingHeader}>
               <Clock size={20} color={Colors.primary} />
@@ -1334,6 +1378,7 @@ export default function BookingDetailsScreen() {
           commission={
             booking.commission ? Number(booking.commission) : undefined
           }
+          refundAmount={cancellationInfo?.refundAmount}
         />
 
         {/* Pricing Disclaimer */}

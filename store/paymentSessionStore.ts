@@ -6,6 +6,9 @@ export type PaymentSessionContext = 'booking' | 'modification';
 
 export interface PaymentSessionDetails {
   bookingId: string;
+  // The authenticated user this session belongs to
+  userId: string;
+  userRole?: string; // e.g. 'customer' | 'agent' | 'admin'
   bookingDetails: {
     bookingNumber: string;
     route: string;
@@ -34,7 +37,7 @@ interface PaymentSessionStore {
   setSession: (session: PaymentSessionDetails) => void;
   updateSession: (
     updates: Partial<
-      Omit<PaymentSessionDetails, 'bookingId' | 'bookingDetails'>
+      Omit<PaymentSessionDetails, 'bookingId' | 'bookingDetails' | 'userId'>
     >
   ) => void;
   clearSession: () => void;

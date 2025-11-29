@@ -17,6 +17,7 @@ interface PaymentDetailsCardProps {
   paymentMethod?: string;
   payment?: Payment;
   commission?: number;
+  refundAmount?: number;
 }
 
 const PaymentDetailsCard: React.FC<PaymentDetailsCardProps> = ({
@@ -25,6 +26,7 @@ const PaymentDetailsCard: React.FC<PaymentDetailsCardProps> = ({
   paymentMethod,
   payment,
   commission,
+  refundAmount,
 }) => {
   // Based on agentBookingsStore.ts:
   // - totalAmount = originalFare (calculated from trip base_fare × multiplier × passengers)
@@ -188,6 +190,20 @@ const PaymentDetailsCard: React.FC<PaymentDetailsCardProps> = ({
             ]}
           >
             {formatCurrency(commission)}
+          </Text>
+        </View>
+      )}
+
+      {typeof refundAmount === 'number' && refundAmount > 0 && (
+        <View style={styles.paymentRow}>
+          <Text style={styles.paymentLabel}>Refund Amount</Text>
+          <Text
+            style={[
+              styles.paymentValue,
+              { color: Colors.success, fontWeight: '700' },
+            ]}
+          >
+            {formatCurrency(refundAmount)}
           </Text>
         </View>
       )}

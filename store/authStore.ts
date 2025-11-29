@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, supabaseAdmin } from '../utils/supabase';
+import { usePaymentSessionStore } from './paymentSessionStore';
 import type { UserProfile, RegisterData, AuthUser } from '@/types/auth';
 
 interface AuthState {
@@ -252,6 +253,9 @@ export const useAuthStore = create<AuthState>()(
             throw new Error(inactiveMessage);
           }
 
+          // Clear any stale payment session from previous users on this device
+          usePaymentSessionStore.getState().clearSession();
+
           set({
             isAuthenticated: true,
             user: {
@@ -373,6 +377,9 @@ export const useAuthStore = create<AuthState>()(
           await Promise.all(
             supabaseAuthKeys.map(key => AsyncStorage.removeItem(key))
           );
+
+          // Clear any local payment session tied to this device
+          usePaymentSessionStore.getState().clearSession();
 
           // Set preventRedirect to true to avoid immediate navigation
           set({

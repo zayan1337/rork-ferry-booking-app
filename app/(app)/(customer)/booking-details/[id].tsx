@@ -61,6 +61,7 @@ import {
   calculateBookingExpiry,
   combineTripDateTime,
 } from '@/utils/bookingExpiryUtils';
+import { useAuthStore } from '@/store/authStore';
 
 export default function BookingDetailsScreen() {
   const { id } = useLocalSearchParams();
@@ -100,6 +101,14 @@ export default function BookingDetailsScreen() {
   );
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
 
+  // Current authenticated user (for scoping payment sessions to the right account)
+  const { user } = useAuthStore();
+
+  // Cancellation / refund information (loaded when booking is cancelled)
+  const [cancellationInfo, setCancellationInfo] = useState<{
+    refundAmount: number;
+  } | null>(null);
+
   // Validate payment session on app resume and clear expired sessions
   usePaymentSessionValidator();
 
@@ -109,6 +118,45 @@ export default function BookingDetailsScreen() {
       fetchUserBookings();
     }
   }, [fetchUserBookings, bookings.length]);
+
+  // Load cancellation / refund info when booking is cancelled
+  useEffect(() => {
+    const loadCancellationInfo = async () => {
+      if (!booking || booking.status !== 'cancelled') {
+        setCancellationInfo(null);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('cancellations')
+          .select('refund_amount')
+          .eq('booking_id', booking.id)
+          .maybeSingle();
+
+        if (!error && data && typeof data.refund_amount === 'number') {
+          setCancellationInfo({ refundAmount: Number(data.refund_amount) });
+        } else {
+          setCancellationInfo(null);
+        }
+      } catch (loadError) {
+        console.warn(
+          'Failed to load cancellation/refund info for booking:',
+          loadError
+        );
+        setCancellationInfo(null);
+      }
+    };
+
+    loadCancellationInfo();
+  }, [booking?.id, booking?.status]);
+
+  // If there's a saved session that belongs to another user, clear it immediately
+  useEffect(() => {
+    if (paymentSession && user?.id && paymentSession.userId !== user.id) {
+      clearPaymentSession();
+    }
+  }, [paymentSession, user?.id, clearPaymentSession]);
 
   // Refresh booking when screen comes into focus (handles auto-cancellation updates)
   useFocusEffect(
@@ -879,6 +927,15 @@ export default function BookingDetailsScreen() {
               {booking.payment.status.toUpperCase()}
             </Text>
           </View>
+          {cancellationInfo?.refundAmount != null &&
+            cancellationInfo.refundAmount > 0 && (
+              <View style={styles.paymentRow}>
+                <Text style={styles.paymentLabel}>Refund Amount</Text>
+                <Text style={styles.paymentValue}>
+                  MVR {cancellationInfo.refundAmount.toFixed(2)}
+                </Text>
+              </View>
+            )}
         </>
       ) : (
         <Text style={styles.paymentValue}>

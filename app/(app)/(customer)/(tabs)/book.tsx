@@ -66,7 +66,7 @@ import { formatBookingDate, formatTimeAMPM } from '@/utils/dateUtils';
 
 export default function BookScreen() {
   const { showSuccess, showError, showInfo } = useAlertContext();
-  const { isAuthenticated, isGuestMode } = useAuthStore();
+  const { isAuthenticated, isGuestMode, user } = useAuthStore();
   const promptLoginForBooking = useCallback(() => {
     showError(
       'Login Required',
@@ -238,6 +238,11 @@ export default function BookScreen() {
       },
       tripInfo?: { travelDate: string; departureTime: string }
     ) => {
+      // If for some reason we don't have a logged-in user (shouldn't happen here),
+      // don't create a persistent session that could be shown to someone else.
+      if (!user?.id) {
+        return;
+      }
       const seconds = calculatePaymentWindowSeconds(tripInfo);
       const expiresAt =
         seconds > 0
@@ -246,6 +251,8 @@ export default function BookScreen() {
 
       setPaymentSession({
         bookingId,
+        userId: user.id,
+        userRole: user.profile?.role || 'customer',
         bookingDetails: details,
         context: 'booking',
         tripInfo,
@@ -254,7 +261,7 @@ export default function BookScreen() {
         expiresAt,
       });
     },
-    [calculatePaymentWindowSeconds, setPaymentSession]
+    [calculatePaymentWindowSeconds, setPaymentSession, user?.id, user?.profile?.role]
   );
 
   const handleResumePayment = useCallback(() => {
@@ -431,6 +438,9 @@ export default function BookScreen() {
 
   const shouldShowResumeBanner =
     !!paymentSession &&
+    // Only show banner if the session belongs to the currently logged-in user
+    !!user?.id &&
+    paymentSession.userId === user.id &&
     !showMibPayment &&
     resumeBannerExpiry !== null &&
     !resumeBannerExpiry.isExpired &&
@@ -567,6 +577,12 @@ export default function BookScreen() {
   }, []);
 
   useEffect(() => {
+    // If there's a session but it belongs to a different user, clear it immediately
+    if (paymentSession && user?.id && paymentSession.userId !== user.id) {
+      clearPaymentSession();
+      return;
+    }
+
     if (!paymentSession || showMibPayment) return;
     if (new Date(paymentSession.expiresAt).getTime() <= Date.now()) {
       handlePaymentTimeout();

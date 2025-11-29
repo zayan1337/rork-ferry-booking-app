@@ -148,11 +148,60 @@ serve(async req => {
     const supabase = createSupabaseClient();
 
     // Handle GET requests for cron jobs (no body needed)
+    // Handle POST requests for manual invocation (with optional bookingId)
     let bookingId: string | undefined;
-    if (req.method === 'POST') {
+    let useDatabaseFunction = false; // Flag to use database function for bulk processing
+
+    if (req.method === 'GET') {
+      // Cron invocation - use database function for efficiency
+      useDatabaseFunction = true;
+    } else if (req.method === 'POST') {
       const body = await req.json().catch(() => ({}));
       bookingId = (body as { bookingId?: string }).bookingId;
+      // If no specific bookingId, use database function for bulk processing
+      useDatabaseFunction = !bookingId;
     }
+
+    // OPTION 1: Use database function for bulk processing (more efficient)
+    if (useDatabaseFunction) {
+      console.log('[AUTO-CANCEL] Using database function for bulk processing');
+      const { data: result, error: dbError } = await supabase.rpc(
+        'auto_cancel_expired_pending_bookings'
+      );
+
+      if (dbError) {
+        console.error('[AUTO-CANCEL] Database function error:', dbError);
+        // Fall back to manual processing
+        useDatabaseFunction = false;
+      } else {
+        const cancelledCount = result?.[0]?.cancelled_count || 0;
+        const cancelledIds = result?.[0]?.cancelled_ids || [];
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            cancelled: cancelledIds,
+            cancelledCount,
+            method: 'database_function',
+            message:
+              cancelledCount === 0
+                ? 'No pending bookings exceeded the payment window.'
+                : `Cancelled ${cancelledCount} pending booking(s) using database function.`,
+          }),
+          {
+            headers: {
+              ...corsHeaders,
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+      }
+    }
+
+    // OPTION 2: Manual processing (for specific booking or fallback)
+    console.log(
+      `[AUTO-CANCEL] Processing ${bookingId ? 'specific booking' : 'all bookings'} manually`
+    );
 
     const now = new Date();
     let targetBookings: Array<{ id: string; reason: string }> = [];
@@ -202,7 +251,7 @@ serve(async req => {
     for (const booking of bookings) {
       const trip = tripMap.get(booking.trip_id);
       if (!trip) {
-        console.warn(`Trip not found for booking ${booking.id}`);
+        console.warn(`[AUTO-CANCEL] Trip not found for booking ${booking.id}`);
         continue;
       }
 
@@ -240,9 +289,14 @@ serve(async req => {
       try {
         await cancelBookingRecord(supabase, target.id);
         cancelled.push(target.id);
-        console.log(`Cancelled booking ${target.id}: ${target.reason}`);
+        console.log(
+          `[AUTO-CANCEL] Cancelled booking ${target.id}: ${target.reason}`
+        );
       } catch (error) {
-        console.error(`Failed to cancel booking ${target.id}:`, error);
+        console.error(
+          `[AUTO-CANCEL] Failed to cancel booking ${target.id}:`,
+          error
+        );
         errors.push({
           bookingId: target.id,
           error: error?.message || 'Unknown error',
@@ -254,7 +308,9 @@ serve(async req => {
       JSON.stringify({
         success: true,
         cancelled,
+        cancelledCount: cancelled.length,
         errors: errors.length > 0 ? errors : undefined,
+        method: 'manual_processing',
         message:
           cancelled.length === 0
             ? 'No pending bookings exceeded the payment window.'
@@ -268,7 +324,7 @@ serve(async req => {
       }
     );
   } catch (error) {
-    console.error('auto-cancel-pending error:', error);
+    console.error('[AUTO-CANCEL] Error:', error);
     return new Response(
       JSON.stringify({
         success: false,

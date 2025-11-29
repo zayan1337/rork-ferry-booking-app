@@ -702,16 +702,20 @@ export default function AgentNewBookingScreen() {
             )
           );
 
-          // Set payment session
-          setPaymentSession({
-            bookingId: bookingId,
-            bookingDetails: bookingDetails,
-            context: 'booking',
-            tripInfo,
-            sessionData: null,
-            startedAt: new Date().toISOString(),
-            expiresAt: expiresAtDate.toISOString(),
-          });
+          // Set payment session - bind to current agent
+          if (storeAgent?.id) {
+            setPaymentSession({
+              bookingId: bookingId,
+              userId: storeAgent.id,
+              userRole: 'agent',
+              bookingDetails: bookingDetails,
+              context: 'booking',
+              tripInfo,
+              sessionData: null,
+              startedAt: new Date().toISOString(),
+              expiresAt: expiresAtDate.toISOString(),
+            });
+          }
 
           // Show modal immediately with booking details
           setCurrentBookingId(bookingId);

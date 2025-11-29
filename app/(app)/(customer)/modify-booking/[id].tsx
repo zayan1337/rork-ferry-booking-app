@@ -54,6 +54,7 @@ import {
 } from '@/utils/bookingUtils';
 import { ActivityIndicator } from 'react-native';
 import { usePaymentSessionStore } from '@/store/paymentSessionStore';
+import { useAuthStore } from '@/store/authStore';
 import {
   BUFFER_MINUTES_PAYMENT_WINDOW,
   PAYMENT_OPTIONS,
@@ -163,6 +164,9 @@ export default function ModifyBookingScreen() {
     []
   );
 
+  // Current authenticated user (for binding payment session to user)
+  const { user } = useAuthStore();
+
   const startPaymentSessionTracking = useCallback(
     (
       bookingId: string,
@@ -177,6 +181,11 @@ export default function ModifyBookingScreen() {
       tripInfo?: { travelDate: string; departureTime: string },
       originalBookingId?: string
     ) => {
+      // Don't create a session if we don't know the user; avoids showing it to someone else later
+      if (!user?.id) {
+        return;
+      }
+
       const seconds = calculatePaymentWindowSeconds(tripInfo);
       const expiresAt =
         seconds > 0
@@ -185,6 +194,8 @@ export default function ModifyBookingScreen() {
 
       setPaymentSession({
         bookingId,
+        userId: user.id,
+        userRole: user.profile?.role || 'customer',
         bookingDetails: details,
         context: 'modification',
         originalBookingId,
@@ -194,7 +205,7 @@ export default function ModifyBookingScreen() {
         expiresAt,
       });
     },
-    [calculatePaymentWindowSeconds, setPaymentSession]
+    [calculatePaymentWindowSeconds, setPaymentSession, user?.id, user?.profile?.role]
   );
 
   const activeModificationBookingId = useMemo(

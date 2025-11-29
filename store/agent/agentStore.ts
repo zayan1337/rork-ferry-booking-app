@@ -13,6 +13,7 @@ import { useAgentClientsStore } from './agentClientsStore';
 import { useAgentBookingsStore } from './agentBookingsStore';
 import { useAgentStatsStore } from './agentStatsStore';
 import { useAgentCreditStore } from './agentCreditStore';
+import { usePaymentSessionStore } from '../paymentSessionStore';
 
 /**
  * Main agent store state interface
@@ -457,6 +458,8 @@ export const useAgentStore = create<AgentState>()(
         useAgentBookingsStore.getState().reset();
         useAgentStatsStore.getState().reset();
         useAgentCreditStore.getState().reset();
+         // Clear any active payment session tied to this device
+        usePaymentSessionStore.getState().clearSession();
         get().syncFromSubStores();
       },
 
