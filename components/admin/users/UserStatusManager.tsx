@@ -1,5 +1,13 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Modal, Pressable } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Modal,
+  Pressable,
+  Platform,
+  Keyboard,
+} from 'react-native';
 import { Shield, X, CheckCircle, AlertCircle, Ban } from 'lucide-react-native';
 import { colors } from '@/constants/adminColors';
 import { useAlertContext } from '@/components/AlertProvider';
@@ -23,6 +31,11 @@ export default function UserStatusManager({
 }: UserStatusManagerProps) {
   const { showError } = useAlertContext();
   const [updating, setUpdating] = useState(false);
+
+  const handleClose = () => {
+    Keyboard.dismiss();
+    onClose();
+  };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -54,14 +67,14 @@ export default function UserStatusManager({
     newStatus: 'active' | 'inactive' | 'suspended'
   ) => {
     if (newStatus === user.status) {
-      onClose();
+      handleClose();
       return;
     }
 
     setUpdating(true);
     try {
       await onStatusUpdate(newStatus);
-      onClose();
+      handleClose();
     } catch (error) {
       showError('Error', 'Failed to update user status');
     } finally {
@@ -98,7 +111,8 @@ export default function UserStatusManager({
       visible={visible}
       animationType='slide'
       transparent={true}
-      onRequestClose={onClose}
+      {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
+      onRequestClose={handleClose}
     >
       <View style={styles.overlay}>
         <View style={styles.modal}>
@@ -107,7 +121,7 @@ export default function UserStatusManager({
               <Shield size={24} color={colors.primary} />
               <Text style={styles.title}>Manage User Status</Text>
             </View>
-            <Pressable onPress={onClose} style={styles.closeButton}>
+            <Pressable onPress={handleClose} style={styles.closeButton}>
               <X size={24} color={colors.textSecondary} />
             </Pressable>
           </View>
@@ -161,7 +175,7 @@ export default function UserStatusManager({
             <Button
               title='Cancel'
               variant='outline'
-              onPress={onClose}
+              onPress={handleClose}
               disabled={updating}
             />
           </View>

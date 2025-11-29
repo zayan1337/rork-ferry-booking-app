@@ -6,6 +6,8 @@ import {
   Pressable,
   Modal,
   ScrollView,
+  Keyboard,
+  Platform,
 } from 'react-native';
 import { colors } from '@/constants/adminColors';
 import { useAlertContext } from '@/components/AlertProvider';
@@ -174,6 +176,11 @@ export default function BulkTripOperations({
     return true;
   };
 
+  const handleClose = () => {
+    Keyboard.dismiss();
+    onClose();
+  };
+
   const executeOperation = async () => {
     setIsProcessing(true);
 
@@ -186,7 +193,7 @@ export default function BulkTripOperations({
         `Bulk operation completed successfully for ${selectedTrips.length} trips.`,
         () => {
           onOperationComplete();
-          onClose();
+          handleClose();
         }
       );
     } catch (error) {
@@ -305,13 +312,13 @@ export default function BulkTripOperations({
     <Modal
       visible={visible}
       animationType='slide'
-      presentationStyle='pageSheet'
-      onRequestClose={onClose}
+      {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
+      onRequestClose={handleClose}
     >
       <View style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>Bulk Trip Operations</Text>
-          <Pressable onPress={onClose} style={styles.closeButton}>
+          <Pressable onPress={handleClose} style={styles.closeButton}>
             <X size={24} color={colors.text} />
           </Pressable>
         </View>
@@ -393,7 +400,7 @@ export default function BulkTripOperations({
           <Button
             title='Cancel'
             variant='outline'
-            onPress={onClose}
+            onPress={handleClose}
             style={styles.actionButton}
           />
           <Button

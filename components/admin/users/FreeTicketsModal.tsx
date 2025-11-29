@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   TextInput as RNTextInput,
+  Keyboard,
 } from 'react-native';
 import {
   Ticket,
@@ -45,6 +46,11 @@ export default function FreeTicketsModal({
 }: FreeTicketsModalProps) {
   const { showError, showSuccess } = useAlertContext();
   const [saving, setSaving] = useState(false);
+
+  const handleClose = () => {
+    Keyboard.dismiss();
+    onClose();
+  };
   const [allocation, setAllocation] = useState<string>(
     currentAllocation.toString()
   );
@@ -96,7 +102,7 @@ export default function FreeTicketsModal({
         }`,
         () => {
           onUpdate();
-          onClose();
+          handleClose();
         }
       );
     } catch (error: any) {
@@ -160,13 +166,14 @@ export default function FreeTicketsModal({
       visible={visible}
       animationType='slide'
       transparent={true}
-      onRequestClose={onClose}
+      {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
+      onRequestClose={handleClose}
     >
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.overlay}
       >
-        <Pressable style={styles.overlay} onPress={onClose}>
+        <Pressable style={styles.overlay} onPress={handleClose}>
           <Pressable
             style={styles.modal}
             onPress={e => e.stopPropagation()}
@@ -184,7 +191,7 @@ export default function FreeTicketsModal({
                 </View>
               </View>
               <Pressable
-                onPress={onClose}
+                onPress={handleClose}
                 style={styles.closeButton}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
@@ -435,7 +442,7 @@ export default function FreeTicketsModal({
               <Button
                 title='Cancel'
                 variant='outline'
-                onPress={onClose}
+                onPress={handleClose}
                 disabled={saving}
                 style={styles.cancelButton}
               />

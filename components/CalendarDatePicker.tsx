@@ -269,6 +269,7 @@ const CalendarDatePicker: React.FC<DatePickerProps> = ({
         visible={modalVisible}
         animationType='slide'
         transparent={true}
+        {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
         onRequestClose={handleCancel}
       >
         <SafeAreaView style={styles.modalContainer}>

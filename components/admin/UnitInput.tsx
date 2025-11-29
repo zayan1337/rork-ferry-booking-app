@@ -6,6 +6,8 @@ import {
   StyleSheet,
   Pressable,
   Modal,
+  Platform,
+  Keyboard,
 } from 'react-native';
 import { colors } from '@/constants/adminColors';
 import { ChevronDown } from 'lucide-react-native';
@@ -72,12 +74,18 @@ export default function UnitInput({
   };
 
   const handleUnitChange = (unitValue: string) => {
+    Keyboard.dismiss();
     const unitObj = units.find(u => u.value === unitValue);
     if (unitObj && number) {
       const newValue = `${number} ${unitObj.suffix}`;
       onChangeText(newValue);
     }
     setSelectedUnit(unitValue);
+    setShowUnitDropdown(false);
+  };
+
+  const handleClose = () => {
+    Keyboard.dismiss();
     setShowUnitDropdown(false);
   };
 
@@ -125,12 +133,10 @@ export default function UnitInput({
         visible={showUnitDropdown}
         transparent={true}
         animationType='fade'
-        onRequestClose={() => setShowUnitDropdown(false)}
+        {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
+        onRequestClose={handleClose}
       >
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setShowUnitDropdown(false)}
-        >
+        <Pressable style={styles.modalOverlay} onPress={handleClose}>
           <View style={styles.modalContent}>
             <View style={styles.dropdown}>
               {units.map(unitOption => (

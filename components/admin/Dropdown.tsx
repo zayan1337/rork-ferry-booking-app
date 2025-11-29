@@ -6,6 +6,8 @@ import {
   Modal,
   StyleSheet,
   ScrollView,
+  Platform,
+  Keyboard,
 } from 'react-native';
 import { colors } from '@/constants/adminColors';
 import { ChevronDown, Check } from 'lucide-react-native';
@@ -42,7 +44,13 @@ export default function Dropdown({
   const displayText = selectedOption ? selectedOption.label : placeholder;
 
   const handleSelect = (optionValue: string) => {
+    Keyboard.dismiss();
     onValueChange(optionValue);
+    setIsModalVisible(false);
+  };
+
+  const handleClose = () => {
+    Keyboard.dismiss();
     setIsModalVisible(false);
   };
 
@@ -83,19 +91,14 @@ export default function Dropdown({
         visible={isModalVisible}
         transparent={true}
         animationType='fade'
-        onRequestClose={() => setIsModalVisible(false)}
+        {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
+        onRequestClose={handleClose}
       >
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setIsModalVisible(false)}
-        >
+        <Pressable style={styles.modalOverlay} onPress={handleClose}>
           <Pressable style={styles.modalContent} onPress={() => {}}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select {label}</Text>
-              <Pressable
-                style={styles.closeButton}
-                onPress={() => setIsModalVisible(false)}
-              >
+              <Pressable style={styles.closeButton} onPress={handleClose}>
                 <Text style={styles.closeButtonText}>✕</Text>
               </Pressable>
             </View>

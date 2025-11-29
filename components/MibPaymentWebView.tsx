@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Pressable,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView, WebViewNavigation } from 'react-native-webview';
@@ -930,9 +931,9 @@ export default function MibPaymentWebView({
 
   return (
     <Modal
-      visible={true}
+      visible={visible}
       animationType='slide'
-      presentationStyle='pageSheet'
+      {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
       onRequestClose={handleClose}
       transparent={false}
     >

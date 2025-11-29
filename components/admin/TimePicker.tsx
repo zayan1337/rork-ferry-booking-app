@@ -6,6 +6,8 @@ import {
   Modal,
   StyleSheet,
   ScrollView,
+  Platform,
+  Keyboard,
 } from 'react-native';
 import { colors } from '@/constants/adminColors';
 import { Clock, X } from 'lucide-react-native';
@@ -72,6 +74,12 @@ export default function TimePicker({
     const hh = String(tempHour).padStart(2, '0');
     const mm = String(tempMinute).padStart(2, '0');
     onChange(`${hh}:${mm}`);
+    Keyboard.dismiss();
+    setIsVisible(false);
+  };
+
+  const handleCancel = () => {
+    Keyboard.dismiss();
     setIsVisible(false);
   };
 
@@ -113,16 +121,14 @@ export default function TimePicker({
         visible={isVisible}
         transparent
         animationType='fade'
-        onRequestClose={() => setIsVisible(false)}
+        {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
+        onRequestClose={handleCancel}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select Time</Text>
-              <Pressable
-                onPress={() => setIsVisible(false)}
-                style={styles.closeButton}
-              >
+              <Pressable onPress={handleCancel} style={styles.closeButton}>
                 <X size={22} color={colors.textSecondary} />
               </Pressable>
             </View>
@@ -218,10 +224,7 @@ export default function TimePicker({
             </View>
 
             <View style={styles.modalActions}>
-              <Pressable
-                style={styles.secondaryButton}
-                onPress={() => setIsVisible(false)}
-              >
+              <Pressable style={styles.secondaryButton} onPress={handleCancel}>
                 <Text style={styles.secondaryButtonText}>Cancel</Text>
               </Pressable>
               <Pressable

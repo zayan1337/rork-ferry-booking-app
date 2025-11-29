@@ -12,6 +12,8 @@ import {
   Linking,
   Modal,
   Dimensions,
+  Platform,
+  Keyboard,
 } from 'react-native';
 import {
   Stack,
@@ -1554,6 +1556,7 @@ export default function CaptainTripDetailsScreen() {
   };
 
   const handleCloseQRScanner = () => {
+    Keyboard.dismiss();
     setShowQRScanner(false);
     setScanned(false);
   };
@@ -2735,6 +2738,7 @@ export default function CaptainTripDetailsScreen() {
       <Modal
         visible={showQRScanner}
         animationType='slide'
+        {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
         onRequestClose={handleCloseQRScanner}
       >
         <View style={styles.qrScannerContainer}>

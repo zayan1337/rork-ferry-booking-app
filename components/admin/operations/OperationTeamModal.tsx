@@ -10,6 +10,7 @@ import {
   Switch,
   KeyboardAvoidingView,
   Platform,
+  Keyboard,
 } from 'react-native';
 import { colors } from '@/constants/adminColors';
 import { X, Mail, User, Shield, Bell } from 'lucide-react-native';
@@ -31,6 +32,11 @@ export default function OperationTeamModal({
   onSubmit,
   loading,
 }: OperationTeamModalProps) {
+  const handleClose = () => {
+    Keyboard.dismiss();
+    onClose();
+  };
+
   const [formData, setFormData] = useState({
     email: '',
     full_name: '',
@@ -112,7 +118,7 @@ export default function OperationTeamModal({
         <Text style={styles.modalTitle}>
           {member ? 'Edit Team Member' : 'Add Team Member'}
         </Text>
-        <Pressable onPress={onClose} style={styles.closeButton}>
+        <Pressable onPress={handleClose} style={styles.closeButton}>
           <X size={24} color={colors.text} />
         </Pressable>
       </View>
@@ -225,7 +231,7 @@ export default function OperationTeamModal({
       <View style={styles.modalFooter}>
         <Button
           title='Cancel'
-          onPress={onClose}
+          onPress={handleClose}
           variant='outline'
           disabled={loading}
           style={styles.footerButton}
@@ -247,7 +253,8 @@ export default function OperationTeamModal({
       visible={visible}
       animationType='slide'
       transparent={true}
-      onRequestClose={onClose}
+      {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
+      onRequestClose={handleClose}
       statusBarTranslucent
     >
       {Platform.OS === 'ios' ? (

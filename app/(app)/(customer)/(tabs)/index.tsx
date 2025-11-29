@@ -15,6 +15,8 @@ import {
   RefreshControl,
   Modal,
   BackHandler,
+  Platform,
+  Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
@@ -85,6 +87,15 @@ export default function HomeScreen() {
   // Modal state management
   const { modalStates, openModal, closeModal } = useModalState();
 
+  // Helper to close modal with keyboard dismissal
+  const closeModalWithKeyboard = useCallback(
+    (modalName: 'showFromModal' | 'showToModal' | 'showDateModal') => {
+      Keyboard.dismiss();
+      closeModal(modalName);
+    },
+    [closeModal]
+  );
+
   useEffect(() => {
     // Fetch data in background without blocking UI
     if (!isGuestMode) {
@@ -123,15 +134,15 @@ export default function HomeScreen() {
         () => {
           // Check if any modal is open
           if (modalStates.showFromModal) {
-            closeModal('showFromModal');
+            closeModalWithKeyboard('showFromModal');
             return true; // Prevent default back behavior
           }
           if (modalStates.showToModal) {
-            closeModal('showToModal');
+            closeModalWithKeyboard('showToModal');
             return true; // Prevent default back behavior
           }
           if (modalStates.showDateModal) {
-            closeModal('showDateModal');
+            closeModalWithKeyboard('showDateModal');
             return true; // Prevent default back behavior
           }
           return false; // Allow default back behavior
@@ -143,7 +154,7 @@ export default function HomeScreen() {
       modalStates.showFromModal,
       modalStates.showToModal,
       modalStates.showDateModal,
-      closeModal,
+      closeModalWithKeyboard,
     ])
   );
 
@@ -422,8 +433,8 @@ export default function HomeScreen() {
       <Modal
         visible={modalStates.showFromModal}
         animationType='slide'
-        presentationStyle='pageSheet'
-        onRequestClose={() => closeModal('showFromModal')}
+        {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
+        onRequestClose={() => closeModalWithKeyboard('showFromModal')}
       >
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
@@ -431,7 +442,7 @@ export default function HomeScreen() {
             <Pressable
               style={styles.modalCloseButton}
               android_ripple={{ color: Colors.border }}
-              onPress={() => closeModal('showFromModal')}
+              onPress={() => closeModalWithKeyboard('showFromModal')}
             >
               {({ pressed }) => (
                 <View style={pressed && { opacity: 0.7 }}>
@@ -458,7 +469,7 @@ export default function HomeScreen() {
                 }}
                 onPress={() => {
                   updateField('selectedFromIsland', island);
-                  closeModal('showFromModal');
+                  closeModalWithKeyboard('showFromModal');
                 }}
               >
                 {({ pressed }) => (
@@ -484,8 +495,8 @@ export default function HomeScreen() {
       <Modal
         visible={modalStates.showToModal}
         animationType='slide'
-        presentationStyle='pageSheet'
-        onRequestClose={() => closeModal('showToModal')}
+        {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
+        onRequestClose={() => closeModalWithKeyboard('showToModal')}
       >
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
@@ -493,7 +504,7 @@ export default function HomeScreen() {
             <Pressable
               style={styles.modalCloseButton}
               android_ripple={{ color: Colors.border }}
-              onPress={() => closeModal('showToModal')}
+              onPress={() => closeModalWithKeyboard('showToModal')}
             >
               {({ pressed }) => (
                 <View style={pressed && { opacity: 0.7 }}>
@@ -520,7 +531,7 @@ export default function HomeScreen() {
                 }}
                 onPress={() => {
                   updateField('selectedToIsland', island);
-                  closeModal('showToModal');
+                  closeModalWithKeyboard('showToModal');
                 }}
               >
                 {({ pressed }) => (
@@ -549,9 +560,9 @@ export default function HomeScreen() {
         value={quickBookingState.selectedDate || ''}
         onChange={date => {
           updateField('selectedDate', date);
-          closeModal('showDateModal');
+          closeModalWithKeyboard('showDateModal');
         }}
-        onClose={() => closeModal('showDateModal')}
+        onClose={() => closeModalWithKeyboard('showDateModal')}
         minDate={new Date().toISOString().split('T')[0]}
         placeholder='Select travel date'
       />

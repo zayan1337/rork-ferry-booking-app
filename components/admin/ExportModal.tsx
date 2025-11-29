@@ -7,6 +7,7 @@ import {
   StyleSheet,
   ScrollView,
   Platform,
+  Keyboard,
 } from 'react-native';
 import { colors } from '@/constants/adminColors';
 import { useAlertContext } from '@/components/AlertProvider';
@@ -119,6 +120,7 @@ export default function ExportModal({
   };
 
   const handleClose = () => {
+    Keyboard.dismiss();
     // Reset state to defaults
     setDateFrom(getOneMonthAgo());
     setDateTo(getMaxDate());
@@ -148,6 +150,7 @@ export default function ExportModal({
       visible={visible}
       animationType='slide'
       transparent={true}
+      {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
       onRequestClose={handleClose}
     >
       <View style={styles.overlay}>

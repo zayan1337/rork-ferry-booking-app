@@ -7,6 +7,7 @@ import {
   Pressable,
   Platform,
   ScrollView,
+  Keyboard,
 } from 'react-native';
 import {
   CheckCircle,
@@ -59,8 +60,14 @@ const Alert: React.FC<AlertProps> = ({ visible, options, onClose }) => {
 
   const handleBackdropPress = () => {
     if (dismissible) {
+      Keyboard.dismiss();
       onClose();
     }
+  };
+
+  const handleClose = () => {
+    Keyboard.dismiss();
+    onClose();
   };
 
   const getIcon = () => {
@@ -101,7 +108,7 @@ const Alert: React.FC<AlertProps> = ({ visible, options, onClose }) => {
   const renderButtons = () => {
     if (buttons.length === 0) {
       return (
-        <Button title='OK' onPress={onClose} style={styles.singleButton} />
+        <Button title='OK' onPress={handleClose} style={styles.singleButton} />
       );
     }
 
@@ -125,6 +132,7 @@ const Alert: React.FC<AlertProps> = ({ visible, options, onClose }) => {
         <Button
           title={button.text}
           onPress={() => {
+            Keyboard.dismiss();
             button.onPress?.();
             onClose();
           }}
@@ -152,6 +160,7 @@ const Alert: React.FC<AlertProps> = ({ visible, options, onClose }) => {
               key={index}
               title={button.text}
               onPress={() => {
+                Keyboard.dismiss();
                 button.onPress?.();
                 onClose();
               }}
@@ -172,7 +181,8 @@ const Alert: React.FC<AlertProps> = ({ visible, options, onClose }) => {
       visible={visible}
       transparent
       animationType='fade'
-      onRequestClose={dismissible ? onClose : undefined}
+      {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
+      onRequestClose={dismissible ? handleClose : undefined}
     >
       <Pressable style={styles.overlay} onPress={handleBackdropPress}>
         <Pressable style={styles.container} onPress={e => e.stopPropagation()}>
@@ -181,7 +191,7 @@ const Alert: React.FC<AlertProps> = ({ visible, options, onClose }) => {
             {dismissible && (
               <Pressable
                 style={styles.closeButton}
-                onPress={onClose}
+                onPress={handleClose}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
                 <X size={20} color={Colors.textSecondary} />

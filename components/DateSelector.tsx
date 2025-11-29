@@ -7,6 +7,7 @@ import {
   Modal,
   FlatList,
   Platform,
+  Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronDown, Calendar } from 'lucide-react-native';
@@ -157,6 +158,7 @@ export const DateSelector: React.FC<DateSelectorProps> = ({
   };
 
   const handleSelectDay = (date: Date) => {
+    Keyboard.dismiss();
     onChange(formatDate(date));
     setModalVisible(false);
     // Reset view mode for next time
@@ -307,7 +309,11 @@ export const DateSelector: React.FC<DateSelectorProps> = ({
         visible={modalVisible}
         transparent={true}
         animationType='slide'
-        onRequestClose={() => setModalVisible(false)}
+        {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
+        onRequestClose={() => {
+          Keyboard.dismiss();
+          setModalVisible(false);
+        }}
       >
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalContent}>
@@ -332,6 +338,7 @@ export const DateSelector: React.FC<DateSelectorProps> = ({
 
               <Pressable
                 onPress={() => {
+                  Keyboard.dismiss();
                   setModalVisible(false);
                   if (isDateOfBirth) setViewMode('year');
                 }}

@@ -7,6 +7,8 @@ import {
   StyleSheet,
   ScrollView,
   TextInput,
+  Platform,
+  Keyboard,
 } from 'react-native';
 import { colors } from '@/constants/adminColors';
 import {
@@ -119,10 +121,12 @@ export default function DatePicker({
       const formattedDate = `${year}-${month}-${day}`;
       onChange(formattedDate);
     }
+    Keyboard.dismiss();
     setIsVisible(false);
   };
 
   const handleCancel = () => {
+    Keyboard.dismiss();
     setSelectedDate(value ? new Date(`${value}T00:00:00`) : null);
     setIsVisible(false);
   };
@@ -267,6 +271,7 @@ export default function DatePicker({
         visible={isVisible}
         transparent
         animationType='fade'
+        {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
         onRequestClose={handleCancel}
       >
         <View style={styles.modalOverlay}>

@@ -12,7 +12,7 @@ export interface SavedCredential {
 
 /**
  * Credential Storage Utility
- * 
+ *
  * NOTE: Storing passwords in plain text is not recommended for production.
  * Consider using expo-secure-store or encryption for better security.
  * This implementation is for convenience and should be used with caution.
@@ -25,11 +25,12 @@ class CredentialStorage {
     try {
       const data = await AsyncStorage.getItem(CREDENTIALS_STORAGE_KEY);
       if (!data) return [];
-      
+
       const credentials: SavedCredential[] = JSON.parse(data);
       // Sort by lastUsed, most recent first
-      return credentials.sort((a, b) => 
-        new Date(b.lastUsed).getTime() - new Date(a.lastUsed).getTime()
+      return credentials.sort(
+        (a, b) =>
+          new Date(b.lastUsed).getTime() - new Date(a.lastUsed).getTime()
       );
     } catch (error) {
       console.error('Error loading saved credentials:', error);
@@ -43,14 +44,17 @@ class CredentialStorage {
   async saveCredential(username: string, password: string): Promise<void> {
     try {
       const credentials = await this.getSavedCredentials();
-      
+
       // Check if credential already exists
       const existingIndex = credentials.findIndex(
         cred => cred.username.toLowerCase() === username.toLowerCase()
       );
 
       const newCredential: SavedCredential = {
-        id: existingIndex >= 0 ? credentials[existingIndex].id : this.generateId(),
+        id:
+          existingIndex >= 0
+            ? credentials[existingIndex].id
+            : this.generateId(),
         username,
         password,
         lastUsed: new Date().toISOString(),
@@ -67,7 +71,7 @@ class CredentialStorage {
 
       // Limit to 10 saved credentials
       const limitedCredentials = credentials.slice(0, 10);
-      
+
       await AsyncStorage.setItem(
         CREDENTIALS_STORAGE_KEY,
         JSON.stringify(limitedCredentials)
@@ -85,7 +89,7 @@ class CredentialStorage {
     try {
       const credentials = await this.getSavedCredentials();
       const filtered = credentials.filter(cred => cred.id !== id);
-      
+
       await AsyncStorage.setItem(
         CREDENTIALS_STORAGE_KEY,
         JSON.stringify(filtered)
@@ -146,11 +150,8 @@ class CredentialStorage {
       return username.split('@')[0];
     }
     // Phone or other: return first 4 chars + ...
-    return username.length > 4 
-      ? `${username.substring(0, 4)}...` 
-      : username;
+    return username.length > 4 ? `${username.substring(0, 4)}...` : username;
   }
 }
 
 export const credentialStorage = new CredentialStorage();
-

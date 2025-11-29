@@ -9,6 +9,8 @@ import {
   RefreshControl,
   TextInput,
   Modal,
+  Platform,
+  Keyboard,
 } from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { colors } from '@/constants/adminColors';
@@ -480,7 +482,11 @@ export default function TripBookingsPage() {
           visible={showFilterModal}
           transparent
           animationType='fade'
-          onRequestClose={() => setShowFilterModal(false)}
+          {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
+          onRequestClose={() => {
+            Keyboard.dismiss();
+            setShowFilterModal(false);
+          }}
         >
           <View style={styles.modalOverlay}>
             <View style={styles.filterModal}>
@@ -493,6 +499,7 @@ export default function TripBookingsPage() {
                     filterStatus === status && styles.filterOptionSelected,
                   ]}
                   onPress={() => {
+                    Keyboard.dismiss();
                     setFilterStatus(status);
                     setShowFilterModal(false);
                   }}

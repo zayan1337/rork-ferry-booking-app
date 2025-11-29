@@ -10,6 +10,7 @@ import {
   Animated,
   BackHandler,
   Platform,
+  Keyboard,
 } from 'react-native';
 import {
   UserCheck,
@@ -40,6 +41,12 @@ export default function CaptainTabLayout() {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [notificationCount, setNotificationCount] = useState(0);
   const [loadingNotifications, setLoadingNotifications] = useState(false);
+
+  // Helper to close notification modal with keyboard dismissal
+  const closeNotificationModal = () => {
+    Keyboard.dismiss();
+    setShowNotifications(false);
+  };
   const spinValue = useRef(new Animated.Value(0)).current;
   const spinAnimation = useRef<Animated.CompositeAnimation | null>(null);
 
@@ -154,7 +161,7 @@ export default function CaptainTabLayout() {
         'hardwareBackPress',
         () => {
           if (showNotifications) {
-            setShowNotifications(false);
+            closeNotificationModal();
             return true; // Prevent default behavior
           }
           return false; // Allow default behavior
@@ -167,7 +174,7 @@ export default function CaptainTabLayout() {
 
   // Handle trip navigation
   const handleTripPress = (tripId: string) => {
-    setShowNotifications(false);
+    closeNotificationModal();
     // router.push(`../trip-details/${tripId}` as any);
     router.push(`/(captain)/trip-details/${tripId}` as any);
   };
@@ -291,8 +298,8 @@ export default function CaptainTabLayout() {
       <Modal
         visible={showNotifications}
         animationType='slide'
-        presentationStyle='pageSheet'
-        onRequestClose={() => setShowNotifications(false)}
+        {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
+        onRequestClose={closeNotificationModal}
       >
         <SafeView edges={['top', 'bottom']} backgroundColor={Colors.background}>
           <View style={styles.modalContainer}>
@@ -328,7 +335,7 @@ export default function CaptainTabLayout() {
                 </Pressable>
                 <Pressable
                   style={styles.closeButton}
-                  onPress={() => setShowNotifications(false)}
+                  onPress={closeNotificationModal}
                 >
                   <X size={24} color={Colors.text} />
                 </Pressable>

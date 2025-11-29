@@ -14,6 +14,7 @@ import {
   Platform,
   Modal,
   ActivityIndicator,
+  Keyboard,
 } from 'react-native';
 import {
   ArrowUp,
@@ -390,6 +391,7 @@ const CreditPaymentModal = React.memo(
     };
 
     const handleClose = () => {
+      Keyboard.dismiss();
       if (isProcessing) {
         // Allow closing during processing - reset state on close
         setIsProcessing(false);
@@ -403,6 +405,7 @@ const CreditPaymentModal = React.memo(
         visible={visible}
         transparent
         animationType='slide'
+        {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
         onRequestClose={handleClose}
       >
         <KeyboardAvoidingView

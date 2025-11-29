@@ -9,6 +9,8 @@ import {
   Modal,
   TextInput,
   ActivityIndicator,
+  Platform,
+  Keyboard,
 } from 'react-native';
 import { Stack, router, useFocusEffect } from 'expo-router';
 import { colors } from '@/constants/adminColors';
@@ -253,6 +255,7 @@ const WalletRechargeModal = React.memo(
     };
 
     const handleClose = () => {
+      Keyboard.dismiss();
       setAmount('');
       onClose();
     };
@@ -261,7 +264,13 @@ const WalletRechargeModal = React.memo(
 
     return (
       <>
-        <Modal visible={visible} transparent animationType='slide'>
+        <Modal
+          visible={visible}
+          transparent
+          animationType='slide'
+          {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
+          onRequestClose={handleClose}
+        >
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
               <View style={styles.modalHeader}>

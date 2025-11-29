@@ -1,5 +1,14 @@
 import React from 'react';
-import { View, Text, Modal, ScrollView, Pressable, Switch } from 'react-native';
+import {
+  View,
+  Text,
+  Modal,
+  ScrollView,
+  Pressable,
+  Switch,
+  Platform,
+  Keyboard,
+} from 'react-native';
 import { X } from 'lucide-react-native';
 import { colors } from '@/constants/adminColors';
 import { SystemSettings } from '@/types/settings';
@@ -22,18 +31,24 @@ export default function SystemSettingsModal({
   setTempSettings,
   onSave,
 }: SystemSettingsModalProps) {
+  const handleClose = () => {
+    Keyboard.dismiss();
+    onClose();
+  };
+
   return (
     <Modal
       visible={visible}
       transparent
       animationType='slide'
-      onRequestClose={onClose}
+      {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
+      onRequestClose={handleClose}
     >
       <View style={styles.modalOverlay}>
         <View style={styles.modal}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>System Settings</Text>
-            <Pressable onPress={onClose}>
+            <Pressable onPress={handleClose}>
               <X size={24} color={colors.text} />
             </Pressable>
           </View>
@@ -101,7 +116,7 @@ export default function SystemSettingsModal({
           </ScrollView>
 
           <View style={styles.modalActions}>
-            <Button title='Cancel' variant='ghost' onPress={onClose} />
+            <Button title='Cancel' variant='ghost' onPress={handleClose} />
             <Button title='Save Settings' variant='primary' onPress={onSave} />
           </View>
         </View>

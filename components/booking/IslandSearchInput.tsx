@@ -17,6 +17,8 @@ import {
   Pressable,
   StyleSheet,
   Modal,
+  Platform,
+  Keyboard,
 } from 'react-native';
 import { MapPin, Check, X, Search } from 'lucide-react-native';
 import Colors from '@/constants/colors';
@@ -55,8 +57,14 @@ export default function IslandSearchInput({
     : islands;
 
   const handleSelect = (island: Island) => {
+    Keyboard.dismiss();
     onChange(island.id);
     setSearchQuery('');
+    setShowModal(false);
+  };
+
+  const handleClose = () => {
+    Keyboard.dismiss();
     setShowModal(false);
   };
 
@@ -103,17 +111,14 @@ export default function IslandSearchInput({
       <Modal
         visible={showModal}
         animationType='slide'
-        presentationStyle='pageSheet'
-        onRequestClose={() => setShowModal(false)}
+        {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
+        onRequestClose={handleClose}
       >
         <View style={styles.modalContainer}>
           {/* Modal Header */}
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>{label}</Text>
-            <Pressable
-              onPress={() => setShowModal(false)}
-              style={styles.closeButton}
-            >
+            <Pressable onPress={handleClose} style={styles.closeButton}>
               <X size={24} color={Colors.text} />
             </Pressable>
           </View>

@@ -9,6 +9,8 @@ import {
   Dimensions,
   Modal,
   ActivityIndicator,
+  Platform,
+  Keyboard,
 } from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { colors } from '@/constants/adminColors';
@@ -335,6 +337,7 @@ export default function UserPermissionsScreen() {
         await applyRoleTemplate(id, template.id, user.profile.id);
         setSelectedPermissions(new Set(template.permission_ids || []));
         setHasUnsavedChanges(false);
+        Keyboard.dismiss();
         setShowRoleTemplates(false);
 
         showSuccess(
@@ -416,6 +419,7 @@ export default function UserPermissionsScreen() {
           'Super Admin',
           'Super administrators have all permissions by default.'
         );
+        Keyboard.dismiss();
         setShowBulkActions(false);
         return;
       }
@@ -449,6 +453,7 @@ export default function UserPermissionsScreen() {
         await updateUserPermissions(id, targetPermissions, user.profile.id);
         setSelectedPermissions(new Set(targetPermissions));
         setHasUnsavedChanges(false);
+        Keyboard.dismiss();
         setShowBulkActions(false);
         await loadUserData(); // Refresh data
         showSuccess('Success', 'Bulk permissions updated successfully.');
@@ -1037,13 +1042,22 @@ export default function UserPermissionsScreen() {
         visible={showRoleTemplates}
         transparent
         animationType='slide'
-        onRequestClose={() => setShowRoleTemplates(false)}
+        {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
+        onRequestClose={() => {
+          Keyboard.dismiss();
+          setShowRoleTemplates(false);
+        }}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modal}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Role Templates</Text>
-              <Pressable onPress={() => setShowRoleTemplates(false)}>
+              <Pressable
+                onPress={() => {
+                  Keyboard.dismiss();
+                  setShowRoleTemplates(false);
+                }}
+              >
                 <X size={24} color={colors.text} />
               </Pressable>
             </View>
@@ -1092,13 +1106,22 @@ export default function UserPermissionsScreen() {
         visible={showBulkActions}
         transparent
         animationType='slide'
-        onRequestClose={() => setShowBulkActions(false)}
+        {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
+        onRequestClose={() => {
+          Keyboard.dismiss();
+          setShowBulkActions(false);
+        }}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modal}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Bulk Actions</Text>
-              <Pressable onPress={() => setShowBulkActions(false)}>
+              <Pressable
+                onPress={() => {
+                  Keyboard.dismiss();
+                  setShowBulkActions(false);
+                }}
+              >
                 <X size={24} color={colors.text} />
               </Pressable>
             </View>

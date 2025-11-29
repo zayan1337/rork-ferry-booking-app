@@ -8,6 +8,8 @@ import {
   ScrollView,
   TextInput as RNTextInput,
   Dimensions,
+  Platform,
+  Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '@/constants/adminColors';
@@ -147,6 +149,7 @@ export default function SeatEditModal({
   };
 
   const handleCancel = () => {
+    Keyboard.dismiss();
     setEditedSeat(null);
     setIsNewSeat(false);
     onCancel();
@@ -609,7 +612,7 @@ export default function SeatEditModal({
     <Modal
       visible={visible}
       animationType='slide'
-      presentationStyle='pageSheet'
+      {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
       onRequestClose={handleCancel}
     >
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>

@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Modal,
   Platform,
+  Keyboard,
 } from 'react-native';
 import {
   User,
@@ -165,6 +166,7 @@ export default function CaptainProfileScreen() {
   };
 
   const closeEditModal = () => {
+    Keyboard.dismiss();
     setIsEditModalVisible(false);
     setEditingField(null);
     setEditValue('');
@@ -172,10 +174,17 @@ export default function CaptainProfileScreen() {
   };
 
   const closePasswordModal = () => {
+    Keyboard.dismiss();
     setIsPasswordModalVisible(false);
     setNewPassword('');
     setConfirmPassword('');
     setIsSaving(false);
+  };
+
+  // Helper to close delete modal with keyboard dismissal
+  const closeDeleteModal = () => {
+    Keyboard.dismiss();
+    setIsDeleteModalVisible(false);
   };
 
   // Local update function that doesn't trigger global auth loading
@@ -568,6 +577,7 @@ export default function CaptainProfileScreen() {
         visible={isEditModalVisible}
         animationType='slide'
         transparent={true}
+        {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
         onRequestClose={closeEditModal}
       >
         <View style={styles.modalOverlay}>
@@ -627,13 +637,14 @@ export default function CaptainProfileScreen() {
         visible={isDeleteModalVisible}
         animationType='slide'
         transparent={true}
-        onRequestClose={() => setIsDeleteModalVisible(false)}
+        {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
+        onRequestClose={closeDeleteModal}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Confirm Deletion</Text>
-              <Pressable onPress={() => setIsDeleteModalVisible(false)}>
+              <Pressable onPress={closeDeleteModal}>
                 <X size={24} color={Colors.text} />
               </Pressable>
             </View>
@@ -661,7 +672,7 @@ export default function CaptainProfileScreen() {
               <Button
                 title='Cancel'
                 variant='outline'
-                onPress={() => setIsDeleteModalVisible(false)}
+                onPress={closeDeleteModal}
                 style={styles.modalButton}
                 disabled={isDeleting}
               />
@@ -683,6 +694,7 @@ export default function CaptainProfileScreen() {
         visible={isPasswordModalVisible}
         animationType='slide'
         transparent={true}
+        {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
         onRequestClose={closePasswordModal}
       >
         <View style={styles.modalOverlay}>

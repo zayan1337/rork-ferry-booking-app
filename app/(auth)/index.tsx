@@ -10,6 +10,7 @@ import {
   ScrollView,
   BackHandler,
   Modal,
+  Keyboard,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
@@ -222,6 +223,12 @@ export default function LoginScreen() {
     setSuggestionsDismissed(true);
   };
 
+  // Helper to close modal with keyboard dismissal
+  const handleCloseViewAllModal = () => {
+    Keyboard.dismiss();
+    setShowViewAllModal(false);
+  };
+
   const handleDeleteCredential = async (id: string) => {
     try {
       await credentialStorage.deleteCredential(id);
@@ -235,7 +242,7 @@ export default function LoginScreen() {
     try {
       await credentialStorage.clearAllCredentials();
       await loadSavedCredentials();
-      setShowViewAllModal(false);
+      handleCloseViewAllModal();
     } catch (error) {
       console.error('Error clearing all credentials:', error);
     }
@@ -449,18 +456,19 @@ export default function LoginScreen() {
         visible={showViewAllModal}
         transparent={true}
         animationType='slide'
-        onRequestClose={() => setShowViewAllModal(false)}
+        {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
+        onRequestClose={handleCloseViewAllModal}
       >
         <Pressable
           style={styles.modalOverlay}
-          onPress={() => setShowViewAllModal(false)}
+          onPress={handleCloseViewAllModal}
         >
           <Pressable style={styles.modalContent} onPress={() => {}}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Saved Accounts</Text>
               <Pressable
                 style={styles.modalCloseButton}
-                onPress={() => setShowViewAllModal(false)}
+                onPress={handleCloseViewAllModal}
               >
                 <X size={24} color={Colors.text} />
               </Pressable>

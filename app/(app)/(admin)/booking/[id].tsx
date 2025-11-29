@@ -11,6 +11,8 @@ import {
   Modal,
   Linking,
   Alert,
+  Platform,
+  Keyboard,
 } from 'react-native';
 import {
   Stack,
@@ -112,6 +114,22 @@ export default function BookingDetailsPage() {
   const [showTicketModal, setShowTicketModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
+
+  // Helper functions to close modals with keyboard dismissal
+  const closeTicketModal = () => {
+    Keyboard.dismiss();
+    setShowTicketModal(false);
+  };
+
+  const closeCancelModal = () => {
+    Keyboard.dismiss();
+    setShowCancelModal(false);
+  };
+
+  const closeReceiptModal = () => {
+    Keyboard.dismiss();
+    setShowReceiptModal(false);
+  };
   const [isSharing, setIsSharing] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
 
@@ -743,7 +761,7 @@ export default function BookingDetailsPage() {
         }`
       );
 
-      setShowCancelModal(false);
+      closeCancelModal();
       setCancelReason('');
       setRefundType('half');
       // Reset refund method based on payment type
@@ -1453,14 +1471,14 @@ export default function BookingDetailsPage() {
       <Modal
         visible={showTicketModal}
         animationType='slide'
-        presentationStyle='pageSheet'
-        onRequestClose={() => setShowTicketModal(false)}
+        {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
+        onRequestClose={closeTicketModal}
       >
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Pressable
               style={styles.modalCloseButton}
-              onPress={() => setShowTicketModal(false)}
+              onPress={closeTicketModal}
             >
               <X size={24} color={colors.text} />
             </Pressable>
@@ -1507,7 +1525,12 @@ export default function BookingDetailsPage() {
         visible={showCancelModal}
         transparent={true}
         animationType='slide'
-        onRequestClose={() => !isCancelling && setShowCancelModal(false)}
+        {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
+        onRequestClose={() => {
+          if (!isCancelling) {
+            closeCancelModal();
+          }
+        }}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalOverlayContent}>
@@ -1721,7 +1744,7 @@ export default function BookingDetailsPage() {
                 <Button
                   title='Cancel'
                   onPress={() => {
-                    setShowCancelModal(false);
+                    closeCancelModal();
                     setCancelReason('');
                     setRefundType('half');
                     // Reset refund method based on payment type
@@ -1761,7 +1784,8 @@ export default function BookingDetailsPage() {
         visible={showReceiptModal}
         transparent={true}
         animationType='slide'
-        onRequestClose={() => setShowReceiptModal(false)}
+        {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
+        onRequestClose={closeReceiptModal}
       >
         <View style={styles.modalOverlay}>
           <Card variant='elevated' style={styles.receiptModalCard}>
@@ -1770,7 +1794,7 @@ export default function BookingDetailsPage() {
               <Text style={styles.receiptModalTitle}>Receipt</Text>
               <Pressable
                 style={styles.modalCloseButton}
-                onPress={() => setShowReceiptModal(false)}
+                onPress={closeReceiptModal}
               >
                 <X size={24} color={colors.text} />
               </Pressable>
@@ -1818,7 +1842,7 @@ export default function BookingDetailsPage() {
             <View style={styles.receiptActions}>
               <Button
                 title='Close'
-                onPress={() => setShowReceiptModal(false)}
+                onPress={closeReceiptModal}
                 style={styles.receiptCloseButton}
               />
             </View>

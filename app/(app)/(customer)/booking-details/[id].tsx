@@ -14,6 +14,8 @@ import {
   Modal,
   AppState,
   AppStateStatus,
+  Platform,
+  Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
@@ -695,6 +697,7 @@ export default function BookingDetailsScreen() {
   };
 
   const handleCloseTicketPopup = () => {
+    Keyboard.dismiss();
     setShowTicketPopup(false);
   };
 
@@ -1328,7 +1331,7 @@ export default function BookingDetailsScreen() {
       <Modal
         visible={showTicketPopup}
         animationType='slide'
-        presentationStyle='pageSheet'
+        {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
         onRequestClose={handleCloseTicketPopup}
       >
         <SafeAreaView style={styles.modalContainer}>
@@ -1483,7 +1486,13 @@ export default function BookingDetailsScreen() {
         visible={showCancelConfirmModal}
         transparent={true}
         animationType='fade'
-        onRequestClose={() => !isCancelling && setShowCancelConfirmModal(false)}
+        {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
+        onRequestClose={() => {
+          if (!isCancelling) {
+            Keyboard.dismiss();
+            setShowCancelConfirmModal(false);
+          }
+        }}
       >
         <View style={styles.modalOverlay}>
           <Card variant='elevated' style={styles.confirmModalCard}>
@@ -1508,7 +1517,10 @@ export default function BookingDetailsScreen() {
             <View style={styles.confirmModalActions}>
               <Button
                 title='No, Keep Booking'
-                onPress={() => setShowCancelConfirmModal(false)}
+                onPress={() => {
+                  Keyboard.dismiss();
+                  setShowCancelConfirmModal(false);
+                }}
                 variant='outline'
                 style={styles.confirmModalButton}
                 disabled={isCancelling}

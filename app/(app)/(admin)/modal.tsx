@@ -8,6 +8,7 @@ import {
   RefreshControl,
   Modal,
   Platform,
+  Keyboard,
 } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
@@ -100,6 +101,7 @@ export default function AdminProfileModal() {
   };
 
   const closeEditModal = () => {
+    Keyboard.dismiss();
     setIsEditModalVisible(false);
     setEditingField(null);
     setEditValue('');
@@ -107,6 +109,7 @@ export default function AdminProfileModal() {
   };
 
   const closePasswordModal = () => {
+    Keyboard.dismiss();
     setIsPasswordModalVisible(false);
     setNewPassword('');
     setConfirmPassword('');
@@ -422,6 +425,7 @@ export default function AdminProfileModal() {
         visible={isEditModalVisible}
         animationType='slide'
         transparent={true}
+        {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
         onRequestClose={closeEditModal}
       >
         <View style={styles.modalOverlay}>
@@ -480,6 +484,7 @@ export default function AdminProfileModal() {
         visible={isPasswordModalVisible}
         animationType='slide'
         transparent={true}
+        {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
         onRequestClose={closePasswordModal}
       >
         <View style={styles.modalOverlay}>

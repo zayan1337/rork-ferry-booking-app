@@ -7,6 +7,8 @@ import {
   Modal,
   FlatList,
   TextInput,
+  Platform,
+  Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronDown, Search, X } from 'lucide-react-native';
@@ -38,12 +40,14 @@ const Dropdown: React.FC<DropdownProps> = ({
       : items;
 
   const handleSelect = (itemValue: string) => {
+    Keyboard.dismiss();
     onChange(itemValue);
     setModalVisible(false);
     setSearchQuery('');
   };
 
   const handleCancel = () => {
+    Keyboard.dismiss();
     setModalVisible(false);
     setSearchQuery('');
   };
@@ -96,6 +100,7 @@ const Dropdown: React.FC<DropdownProps> = ({
         visible={modalVisible}
         animationType='slide'
         transparent={true}
+        {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
         onRequestClose={handleCancel}
       >
         <SafeAreaView style={styles.modalContainer}>

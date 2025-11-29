@@ -7,6 +7,7 @@ import {
   Modal,
   Platform,
   ScrollView,
+  Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Calendar } from 'lucide-react-native';
@@ -60,6 +61,7 @@ const DatePicker: React.FC<DatePickerProps> = ({
   const dates = generateDates();
 
   const handleConfirm = () => {
+    Keyboard.dismiss();
     if (tempDate) {
       onChange(tempDate);
     }
@@ -67,6 +69,7 @@ const DatePicker: React.FC<DatePickerProps> = ({
   };
 
   const handleCancel = () => {
+    Keyboard.dismiss();
     setTempDate(value);
     setModalVisible(false);
   };
@@ -110,6 +113,7 @@ const DatePicker: React.FC<DatePickerProps> = ({
         visible={modalVisible}
         animationType='slide'
         transparent={true}
+        {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
         onRequestClose={handleCancel}
       >
         <SafeAreaView style={styles.modalContainer}>

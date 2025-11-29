@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Modal,
   Platform,
+  Keyboard,
 } from 'react-native';
 import {
   User,
@@ -58,6 +59,17 @@ export default function ProfileScreen() {
       showError('Error', error);
     }
   }, [error, showError]);
+
+  // Dismiss keyboard when modals close on iOS
+  useEffect(() => {
+    if (
+      !isEditModalVisible &&
+      !isPasswordModalVisible &&
+      !isDeleteModalVisible
+    ) {
+      Keyboard.dismiss();
+    }
+  }, [isEditModalVisible, isPasswordModalVisible, isDeleteModalVisible]);
 
   const isGuestView = isGuestMode || !isAuthenticated || !user;
 
@@ -208,6 +220,7 @@ export default function ProfileScreen() {
   };
 
   const closeEditModal = () => {
+    Keyboard.dismiss();
     setIsEditModalVisible(false);
     setEditingField(null);
     setEditValue('');
@@ -215,6 +228,7 @@ export default function ProfileScreen() {
   };
 
   const closePasswordModal = () => {
+    Keyboard.dismiss();
     setIsPasswordModalVisible(false);
     setNewPassword('');
     setConfirmPassword('');
@@ -511,6 +525,7 @@ export default function ProfileScreen() {
         visible={isEditModalVisible}
         animationType='slide'
         transparent={true}
+        {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
         onRequestClose={closeEditModal}
       >
         <View style={styles.modalOverlay}>
@@ -570,6 +585,7 @@ export default function ProfileScreen() {
         visible={isPasswordModalVisible}
         animationType='slide'
         transparent={true}
+        {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
         onRequestClose={closePasswordModal}
       >
         <View style={styles.modalOverlay}>
@@ -626,6 +642,7 @@ export default function ProfileScreen() {
         visible={isDeleteModalVisible}
         animationType='slide'
         transparent={true}
+        {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
         onRequestClose={() => setIsDeleteModalVisible(false)}
       >
         <View style={styles.modalOverlay}>

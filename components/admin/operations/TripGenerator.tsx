@@ -7,6 +7,8 @@ import {
   Pressable,
   Modal,
   BackHandler,
+  Keyboard,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '@/constants/adminColors';
@@ -115,17 +117,22 @@ export default function TripGenerator({
     }
   }, [visible]);
 
+  const handleClose = () => {
+    Keyboard.dismiss();
+    onClose();
+  };
+
   // Handle hardware back button - use useCallback to stabilize the handler
   const handleBackPress = useCallback(() => {
     // If preview modal is open, close it first
     if (showPreview) {
-      setShowPreview(false);
+      handleClosePreview();
       return true; // Prevent default behavior
     }
 
     // If main modal is open, close it
-    if (visible && onClose) {
-      onClose();
+    if (visible) {
+      handleClose();
     }
     return true; // Prevent default behavior
   }, [visible, showPreview, onClose]);
@@ -422,6 +429,11 @@ export default function TripGenerator({
         handleUpdateField('time_slots', newSlots);
       }
     }
+  };
+
+  const handleClosePreview = () => {
+    Keyboard.dismiss();
+    setShowPreview(false);
   };
 
   const handlePreview = () => {
@@ -896,13 +908,13 @@ export default function TripGenerator({
     <Modal
       visible={showPreview}
       animationType='slide'
-      presentationStyle='pageSheet'
-      onRequestClose={() => setShowPreview(false)}
+      {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
+      onRequestClose={handleClosePreview}
     >
       <SafeAreaView style={styles.previewContainer} edges={['top', 'bottom']}>
         <View style={styles.previewHeader}>
           <Text style={styles.previewTitle}>Trip Generation Preview</Text>
-          <Pressable onPress={() => setShowPreview(false)}>
+          <Pressable onPress={handleClosePreview}>
             <X size={24} color={colors.text} />
           </Pressable>
         </View>
@@ -954,12 +966,13 @@ export default function TripGenerator({
           <Button
             title='Cancel'
             variant='outline'
-            onPress={() => setShowPreview(false)}
+            onPress={handleClosePreview}
           />
           <Button
             title='Generate Trips'
             variant='primary'
             onPress={() => {
+              Keyboard.dismiss();
               setShowPreview(false);
               handleGenerate();
             }}
@@ -1027,8 +1040,11 @@ export default function TripGenerator({
     <Modal
       visible={visible}
       animationType='slide'
-      presentationStyle='pageSheet'
-      onRequestClose={handleBackPress}
+      {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
+      onRequestClose={() => {
+        Keyboard.dismiss();
+        handleBackPress();
+      }}
     >
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <View style={styles.modalHeader}>
@@ -1036,7 +1052,7 @@ export default function TripGenerator({
             <Zap size={24} color={colors.primary} />
             <Text style={styles.modalTitle}>Generate Trips</Text>
           </View>
-          <Pressable onPress={onClose} style={styles.closeButton}>
+          <Pressable onPress={handleClose} style={styles.closeButton}>
             <X size={24} color={colors.text} />
           </Pressable>
         </View>

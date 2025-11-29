@@ -9,6 +9,8 @@ import {
   TextInput,
   Modal,
   ActivityIndicator,
+  Platform,
+  Keyboard,
 } from 'react-native';
 import { router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
@@ -174,6 +176,7 @@ function WalletDetailCard({
   };
 
   const handleCancelEdit = () => {
+    Keyboard.dismiss();
     setIsEditingCreditLimit(false);
     setNewCreditLimit(wallet.credit_ceiling?.toString() || '0');
   };
@@ -266,6 +269,7 @@ function WalletDetailCard({
   };
 
   const handleCancelManualPayment = () => {
+    Keyboard.dismiss();
     if (isManualPaymentProcessing) return;
     setManualModalVisible(false);
   };
@@ -606,7 +610,11 @@ function WalletDetailCard({
           visible={isEditingCreditLimit}
           transparent
           animationType='fade'
-          onRequestClose={handleCancelEdit}
+          {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
+          onRequestClose={() => {
+            Keyboard.dismiss();
+            handleCancelEdit();
+          }}
         >
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
@@ -670,7 +678,11 @@ function WalletDetailCard({
           visible={manualModalVisible}
           transparent
           animationType='fade'
-          onRequestClose={handleCancelManualPayment}
+          {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
+          onRequestClose={() => {
+            Keyboard.dismiss();
+            handleCancelManualPayment();
+          }}
         >
           <View style={styles.modalBackdrop}>
             <View style={styles.modalContent}>

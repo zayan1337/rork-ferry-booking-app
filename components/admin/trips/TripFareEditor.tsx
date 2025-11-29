@@ -14,6 +14,7 @@ import {
   Modal,
   KeyboardAvoidingView,
   Platform,
+  Keyboard,
 } from 'react-native';
 import { colors } from '@/constants/adminColors';
 import { useAlertContext } from '@/components/AlertProvider';
@@ -214,7 +215,11 @@ export default function TripFareEditor({
       visible={visible}
       animationType='slide'
       transparent={true}
-      onRequestClose={onCancel}
+      {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
+      onRequestClose={() => {
+        Keyboard.dismiss();
+        onCancel();
+      }}
     >
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}

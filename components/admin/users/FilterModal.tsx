@@ -6,6 +6,8 @@ import {
   StyleSheet,
   Modal,
   ScrollView,
+  Platform,
+  Keyboard,
 } from 'react-native';
 import { X, Check } from 'lucide-react-native';
 import { colors } from '@/constants/adminColors';
@@ -62,18 +64,24 @@ const FilterModal: React.FC<FilterModalProps> = ({
     { key: 'status', label: 'Status (A-Z)', order: 'asc' },
   ];
 
+  const handleClose = () => {
+    Keyboard.dismiss();
+    onClose();
+  };
+
   return (
     <Modal
       visible={visible}
       transparent
       animationType='slide'
-      onRequestClose={onClose}
+      {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
+      onRequestClose={handleClose}
     >
       <View style={styles.modalOverlay}>
         <View style={styles.filterModal}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Filter & Sort</Text>
-            <Pressable onPress={onClose}>
+            <Pressable onPress={handleClose}>
               <X size={24} color={colors.text} />
             </Pressable>
           </View>
@@ -142,7 +150,7 @@ const FilterModal: React.FC<FilterModalProps> = ({
 
           <View style={styles.modalActions}>
             <Button title='Clear All' variant='ghost' onPress={onClearAll} />
-            <Button title='Apply' variant='primary' onPress={onClose} />
+            <Button title='Apply' variant='primary' onPress={handleClose} />
           </View>
         </View>
       </View>
