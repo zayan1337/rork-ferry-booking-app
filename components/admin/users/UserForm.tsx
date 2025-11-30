@@ -73,6 +73,12 @@ export default function UserForm({
   const [creditCeiling, setCreditCeiling] = useState<string>('');
   const [freeTicketsAllocation, setFreeTicketsAllocation] =
     useState<string>('');
+  const [originalCreditCeiling, setOriginalCreditCeiling] =
+    useState<string>('');
+  const [originalFreeTicketsAllocation, setOriginalFreeTicketsAllocation] =
+    useState<string>('');
+  const [originalIsSuperAdmin, setOriginalIsSuperAdmin] =
+    useState<boolean>(false);
   const [isSuperAdmin, setIsSuperAdmin] = useState<boolean>(false);
 
   // Fetch user data to get original role and agent fields
@@ -91,13 +97,18 @@ export default function UserForm({
 
           if (!error && data) {
             setOriginalRole(data.role);
-            setIsSuperAdmin(data.is_super_admin || false);
-            if (data.credit_ceiling) {
-              setCreditCeiling(data.credit_ceiling.toString());
-            }
-            if (data.free_tickets_allocation) {
-              setFreeTicketsAllocation(data.free_tickets_allocation.toString());
-            }
+            const superAdminValue = Boolean(data.is_super_admin);
+            setIsSuperAdmin(superAdminValue);
+            setOriginalIsSuperAdmin(superAdminValue);
+
+            const creditCeilingValue = data.credit_ceiling?.toString() || '';
+            const freeTicketsValue =
+              data.free_tickets_allocation?.toString() || '';
+
+            setCreditCeiling(creditCeilingValue);
+            setFreeTicketsAllocation(freeTicketsValue);
+            setOriginalCreditCeiling(creditCeilingValue);
+            setOriginalFreeTicketsAllocation(freeTicketsValue);
           }
         } catch (error) {
           console.error('Error fetching user data:', error);
@@ -108,14 +119,24 @@ export default function UserForm({
     fetchUserData();
   }, [userId]);
 
-  // Track form changes and initialize role
+  // Check if agent-specific fields have changed
+  const hasAgentFieldsChanged = Boolean(
+    formData.role === 'agent' &&
+      userId &&
+      (creditCeiling !== originalCreditCeiling ||
+        freeTicketsAllocation !== originalFreeTicketsAllocation ||
+        isSuperAdmin !== originalIsSuperAdmin)
+  );
+
+  // Track form changes including agent-specific fields
   useEffect(() => {
-    const hasFormChanges = isDirty;
+    const hasFormChanges = isDirty || hasAgentFieldsChanged;
     setHasChanges(hasFormChanges);
+
     if (formData.role && !originalRole) {
       setOriginalRole(formData.role);
     }
-  }, [isDirty, formData.role, originalRole]);
+  }, [isDirty, hasAgentFieldsChanged, formData.role, originalRole]);
 
   const validateForm = (): boolean => {
     const errors: ValidationErrors = {};
@@ -202,32 +223,51 @@ export default function UserForm({
     setValidationErrors({});
 
     try {
-      // If changing from customer to agent, update agent-specific fields
-      if (originalRole === 'customer' && formData.role === 'agent' && userId) {
+      // Update agent-specific fields if user is an agent
+      if ((formData.role === 'agent' || originalRole === 'agent') && userId) {
         const { supabase } = await import('@/utils/supabase');
-        const updateData: any = {
-          role: formData.role,
-        };
+        const updateData: any = {};
 
-        if (creditCeiling) {
+        // If changing from customer to agent, also update role
+        if (originalRole === 'customer' && formData.role === 'agent') {
+          updateData.role = formData.role;
+        }
+
+        // Update credit ceiling if changed
+        if (creditCeiling !== originalCreditCeiling) {
           updateData.credit_ceiling = parseFloat(creditCeiling) || 0;
         }
 
-        if (freeTicketsAllocation) {
-          updateData.free_tickets_allocation =
-            parseInt(freeTicketsAllocation, 10) || 0;
-          // Set remaining to same as allocation initially
-          updateData.free_tickets_remaining =
-            parseInt(freeTicketsAllocation, 10) || 0;
+        // Update free tickets allocation if changed (only update the limit, not remaining)
+        if (freeTicketsAllocation !== originalFreeTicketsAllocation) {
+          const newAllocation = parseInt(freeTicketsAllocation, 10) || 0;
+          updateData.free_tickets_allocation = newAllocation;
+
+          // Only initialize remaining when changing from customer to agent
+          if (originalRole === 'customer' && formData.role === 'agent') {
+            updateData.free_tickets_remaining = newAllocation;
+          }
+          // For existing agents, only update the allocation limit, don't touch remaining
         }
 
-        const { error: updateError } = await supabase
-          .from('user_profiles')
-          .update(updateData)
-          .eq('id', userId);
+        // Only update if there are changes
+        if (Object.keys(updateData).length > 0) {
+          const { error: updateError } = await supabase
+            .from('user_profiles')
+            .update(updateData)
+            .eq('id', userId);
 
-        if (updateError) {
-          throw updateError;
+          if (updateError) {
+            throw updateError;
+          }
+
+          // Update original values after successful save
+          if (creditCeiling !== originalCreditCeiling) {
+            setOriginalCreditCeiling(creditCeiling);
+          }
+          if (freeTicketsAllocation !== originalFreeTicketsAllocation) {
+            setOriginalFreeTicketsAllocation(freeTicketsAllocation);
+          }
         }
       }
 
@@ -235,7 +275,8 @@ export default function UserForm({
       if (
         currentUserIsSuperAdmin &&
         ((formData.role as string) === 'admin' || originalRole === 'admin') &&
-        userId
+        userId &&
+        isSuperAdmin !== originalIsSuperAdmin
       ) {
         const { supabase } = await import('@/utils/supabase');
         const { error: updateError } = await supabase
@@ -246,6 +287,9 @@ export default function UserForm({
         if (updateError) {
           throw updateError;
         }
+
+        // Update original value after successful save
+        setOriginalIsSuperAdmin(isSuperAdmin);
       }
 
       const result = await handleSubmit();
@@ -279,6 +323,10 @@ export default function UserForm({
     resetForm();
     setValidationErrors({});
     setHasChanges(false);
+    // Reset agent-specific fields to original values
+    setCreditCeiling(originalCreditCeiling);
+    setFreeTicketsAllocation(originalFreeTicketsAllocation);
+    setIsSuperAdmin(originalIsSuperAdmin);
   };
 
   const getStatusDescription = (status: string) => {
@@ -658,12 +706,18 @@ export default function UserForm({
             title={userId ? 'Update User' : 'Create User'}
             onPress={handleFormSubmit}
             loading={loading || isSubmitting}
-            disabled={loading || isSubmitting || !canSubmit}
+            disabled={
+              loading || isSubmitting || (!canSubmit && !hasAgentFieldsChanged)
+            }
             variant='primary'
             icon={
               <Save
                 size={20}
-                color={canSubmit ? colors.white : colors.textSecondary}
+                color={
+                  canSubmit || hasAgentFieldsChanged
+                    ? colors.white
+                    : colors.textSecondary
+                }
               />
             }
           />
@@ -841,6 +895,7 @@ const styles = StyleSheet.create({
   buttonContainer: {
     gap: 16,
     marginBottom: 20,
+    paddingHorizontal: 16,
   },
   statusContainer: {
     flexDirection: 'row',

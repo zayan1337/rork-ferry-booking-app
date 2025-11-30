@@ -10,6 +10,7 @@ import {
   Platform,
   TextInput as RNTextInput,
   Keyboard,
+  Dimensions,
 } from 'react-native';
 import {
   Ticket,
@@ -172,13 +173,10 @@ export default function FreeTicketsModal({
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.overlay}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
         <Pressable style={styles.overlay} onPress={handleClose}>
-          <Pressable
-            style={styles.modal}
-            onPress={e => e.stopPropagation()}
-            onStartShouldSetResponder={() => true}
-          >
+          <View style={styles.modal} onStartShouldSetResponder={() => true}>
             {/* Header */}
             <View style={styles.header}>
               <View style={styles.headerContent}>
@@ -205,7 +203,10 @@ export default function FreeTicketsModal({
               showsVerticalScrollIndicator={true}
               keyboardShouldPersistTaps='handled'
               nestedScrollEnabled={true}
-              bounces={false}
+              bounces={true}
+              scrollEventThrottle={16}
+              decelerationRate='normal'
+              alwaysBounceVertical={false}
             >
               {/* Current Status Card */}
               <View style={styles.statusCard}>
@@ -454,12 +455,14 @@ export default function FreeTicketsModal({
                 style={styles.saveButton}
               />
             </View>
-          </Pressable>
+          </View>
         </Pressable>
       </KeyboardAvoidingView>
     </Modal>
   );
 }
+
+const { height: screenHeight, width: screenWidth } = Dimensions.get('window');
 
 const styles = StyleSheet.create({
   overlay: {
@@ -471,24 +474,26 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    paddingTop: 16,
-    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
-    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 24,
+    paddingHorizontal: Math.max(20, screenWidth * 0.05),
     width: '100%',
-    maxHeight: '90%',
-    minHeight: '70%',
+    height: screenHeight * 0.85,
+    maxHeight: screenHeight * 0.92,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.25,
     shadowRadius: 10,
     elevation: 10,
+    flexDirection: 'column',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 24,
-    paddingTop: 16,
+    marginBottom: 20,
+    paddingTop: 0,
+    paddingHorizontal: 4,
   },
   headerContent: {
     flexDirection: 'row',
@@ -526,16 +531,18 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+    minHeight: 0,
   },
   contentContainer: {
-    paddingBottom: 20,
-    flexGrow: 1,
+    paddingBottom: 24,
+    paddingHorizontal: 4,
   },
   statusCard: {
     backgroundColor: colors.backgroundSecondary,
     borderRadius: 12,
     padding: 16,
     marginBottom: 20,
+    marginHorizontal: 4,
     borderWidth: 1,
     borderColor: colors.borderLight,
   },
@@ -602,6 +609,7 @@ const styles = StyleSheet.create({
   },
   formSection: {
     marginBottom: 20,
+    paddingHorizontal: 4,
   },
   sectionHeader: {
     marginBottom: 16,
@@ -670,6 +678,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     marginBottom: 20,
+    marginHorizontal: 4,
     borderWidth: 2,
     borderColor: colors.primary,
   },
@@ -737,7 +746,8 @@ const styles = StyleSheet.create({
   footer: {
     flexDirection: 'row',
     gap: 12,
-    paddingTop: 20,
+    paddingTop: 16,
+    paddingHorizontal: 4,
     borderTopWidth: 1,
     borderTopColor: colors.borderLight,
     marginTop: 8,

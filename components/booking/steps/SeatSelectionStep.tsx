@@ -134,39 +134,53 @@ const SeatSelectionStep: React.FC<SeatSelectionStepProps> = ({
       )}
 
       {/* Validation Error */}
-      {errors.seats && <Text style={styles.errorText}>{errors.seats}</Text>}
+      {errors?.seats &&
+        typeof errors.seats === 'string' &&
+        errors.seats.trim() !== '' && (
+          <Text style={styles.errorText}>{errors.seats}</Text>
+        )}
 
       {/* Fare Summary */}
-      {selectedSeats.length > 0 && (
-        <View style={styles.fareContainer}>
-          <View style={styles.fareRow}>
-            <Text style={styles.fareLabel}>Total Fare:</Text>
-            <Text style={styles.fareValue}>{formatCurrency(totalFare)}</Text>
-          </View>
-
-          {/* Agent Discount */}
-          {agent && discountRate && discountRate > 0 && (
+      {selectedSeats.length > 0 &&
+        typeof totalFare === 'number' &&
+        !isNaN(totalFare) && (
+          <View style={styles.fareContainer}>
             <View style={styles.fareRow}>
-              <Text style={styles.discountLabel}>
-                Agent Discount ({discountRate}%):
-              </Text>
-              <Text style={styles.discountValue}>
-                -{formatCurrency(totalFare * (discountRate / 100))}
+              <Text style={styles.fareLabel}>Total Fare:</Text>
+              <Text style={styles.fareValue}>
+                {formatCurrency(totalFare || 0)}
               </Text>
             </View>
-          )}
 
-          {/* Discounted Fare */}
-          {agent && discountedFare && discountedFare < totalFare && (
-            <View style={[styles.fareRow, styles.finalFareRow]}>
-              <Text style={styles.finalFareLabel}>Final Amount:</Text>
-              <Text style={styles.finalFareValue}>
-                {formatCurrency(discountedFare)}
-              </Text>
-            </View>
-          )}
-        </View>
-      )}
+            {/* Agent Discount */}
+            {agent &&
+              typeof discountRate === 'number' &&
+              !isNaN(discountRate) &&
+              discountRate > 0 && (
+                <View style={styles.fareRow}>
+                  <Text style={styles.discountLabel}>
+                    Agent Discount ({String(discountRate)}%):
+                  </Text>
+                  <Text style={styles.discountValue}>
+                    -{formatCurrency(totalFare * (discountRate / 100))}
+                  </Text>
+                </View>
+              )}
+
+            {/* Discounted Fare */}
+            {agent &&
+              typeof discountedFare === 'number' &&
+              !isNaN(discountedFare) &&
+              discountedFare < totalFare && (
+                <View style={[styles.fareRow, styles.finalFareRow]}>
+                  <Text style={styles.finalFareLabel}>Final Amount:</Text>
+                  <Text style={styles.finalFareValue}>
+                    {formatCurrency(discountedFare)}
+                  </Text>
+                </View>
+              )}
+          </View>
+        )}
     </View>
   );
 };

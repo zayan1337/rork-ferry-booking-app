@@ -176,8 +176,8 @@ function CreditSummaryCard({
         </View>
       </View>
 
-      {/* Action Button */}
-      {onRequestCredit && (
+      {/* Action Button - Only show if there's an outstanding balance */}
+      {onRequestCredit && summary.creditCeiling - summary.creditBalance > 0 && (
         <Pressable
           style={[
             styles.requestButton,

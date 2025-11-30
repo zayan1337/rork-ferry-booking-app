@@ -44,7 +44,7 @@ import {
 import { CreditTransaction } from '@/types/agent';
 import { supabase } from '@/utils/supabase';
 
-const { width: screenWidth } = Dimensions.get('window');
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const isTablet = screenWidth >= 768;
 
 type FilterType = 'all' | 'refill' | 'deduction';
@@ -413,14 +413,13 @@ const CreditPaymentModal = React.memo(
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
         >
-          <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
-          <View
-            style={styles.modalContent}
-            onStartShouldSetResponder={() => true}
-          >
+          <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Pay Balance</Text>
-              <Pressable onPress={handleClose}>
+              <Pressable
+                onPress={handleClose}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
                 <X size={24} color={Colors.text} />
               </Pressable>
             </View>
@@ -429,7 +428,9 @@ const CreditPaymentModal = React.memo(
               style={styles.modalBodyScroll}
               contentContainerStyle={styles.modalBody}
               keyboardShouldPersistTaps='handled'
-              showsVerticalScrollIndicator={false}
+              showsVerticalScrollIndicator={true}
+              bounces={true}
+              nestedScrollEnabled={true}
             >
               <Text style={styles.modalLabel}>
                 Select or enter payment amount (MVR)
@@ -445,6 +446,7 @@ const CreditPaymentModal = React.memo(
                       amount === value.toString() && styles.amountButtonActive,
                     ]}
                     onPress={() => handleAmountSelect(value)}
+                    hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
                   >
                     <Text
                       style={[
@@ -1067,56 +1069,48 @@ export default function AgentCreditScreen() {
       keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
     >
       <View style={styles.innerContainer}>
-        {(isLoadingCredit || isLoadingWallet) &&
-        (!allTransactions || allTransactions.length === 0) ? (
-          <ScrollView style={styles.container}>
-            <View style={styles.headerContainer}>
-              <View style={styles.summarySection}>
-                <CreditSummaryCard
-                  agent={agent}
-                  transactions={[]}
-                  onRequestCredit={handleRequestCredit}
-                />
+        <FlatList
+          key='credit-transactions-list'
+          data={filteredAndSortedTransactions}
+          keyExtractor={item => item.id}
+          renderItem={renderTransactionItem}
+          ListHeaderComponent={ListHeaderComponent}
+          ListEmptyComponent={
+            (isLoadingCredit || isLoadingWallet) &&
+            (!allTransactions || allTransactions.length === 0) ? (
+              <View style={styles.listLoadingContainer}>
+                <ActivityIndicator size='large' color={Colors.primary} />
+                <Text style={styles.loadingText}>Loading transactions...</Text>
               </View>
-            </View>
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size='large' color={Colors.primary} />
-            </View>
-          </ScrollView>
-        ) : (
-          <FlatList
-            key='credit-transactions-list'
-            data={filteredAndSortedTransactions}
-            keyExtractor={item => item.id}
-            renderItem={renderTransactionItem}
-            ListHeaderComponent={ListHeaderComponent}
-            ListEmptyComponent={ListEmptyComponent}
-            contentContainerStyle={[
-              styles.listContainer,
-              filteredAndSortedTransactions.length === 0 &&
-                styles.emptyListContainer,
-            ]}
-            style={styles.flatListStyle}
-            refreshControl={
-              <RefreshControl
-                refreshing={isRefreshing}
-                onRefresh={handleRefresh}
-                colors={[Colors.primary]}
-                tintColor={Colors.primary}
-              />
-            }
-            getItemLayout={(data, index) => ({
-              length: 120,
-              offset: 120 * index,
-              index,
-            })}
-            removeClippedSubviews={true}
-            maxToRenderPerBatch={15}
-            windowSize={15}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps='handled'
-          />
-        )}
+            ) : (
+              ListEmptyComponent
+            )
+          }
+          contentContainerStyle={[
+            styles.listContainer,
+            filteredAndSortedTransactions.length === 0 &&
+              styles.emptyListContainer,
+          ]}
+          style={styles.flatListStyle}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={handleRefresh}
+              colors={[Colors.primary]}
+              tintColor={Colors.primary}
+            />
+          }
+          getItemLayout={(data, index) => ({
+            length: 120,
+            offset: 120 * index,
+            index,
+          })}
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={15}
+          windowSize={15}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps='handled'
+        />
       </View>
 
       {/* Credit Payment Modal */}
@@ -1672,8 +1666,10 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
-    maxHeight: '90%',
+    maxHeight: screenHeight * 0.92,
+    minHeight: 550,
+    width: '100%',
+    flexDirection: 'column',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -1694,7 +1690,8 @@ const styles = StyleSheet.create({
   },
   modalBody: {
     padding: 20,
-    paddingBottom: 40,
+    paddingBottom: Platform.OS === 'ios' ? 60 : 40,
+    flexGrow: 1,
   },
   modalLabel: {
     fontSize: 14,
@@ -1781,17 +1778,30 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   cancelButtonText: {
     fontSize: 16,
     fontWeight: '600',
     color: Colors.subtext,
   },
-  loadingContainer: {
-    flex: 1,
+  // loadingContainer: {
+  //   flex: 1,
+  //   justifyContent: 'center',
+  //   alignItems: 'center',
+  //   padding: 32,
+  //   minHeight: 200,
+  // },
+  listLoadingContainer: {
+    padding: 32,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 32,
     minHeight: 200,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: Colors.subtext,
   },
 });

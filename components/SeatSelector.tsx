@@ -449,17 +449,19 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
                                           />
                                         ) : (
                                           <>
-                                            <Text
-                                              style={[
-                                                styles.seatNumber,
-                                                isSelected &&
-                                                  styles.selectedSeatNumber,
-                                                !seat.isAvailable &&
-                                                  styles.unavailableSeatNumber,
-                                              ]}
-                                            >
-                                              {seatNumber}
-                                            </Text>
+                                            {seatNumber ? (
+                                              <Text
+                                                style={[
+                                                  styles.seatNumber,
+                                                  isSelected &&
+                                                    styles.selectedSeatNumber,
+                                                  !seat.isAvailable &&
+                                                    styles.unavailableSeatNumber,
+                                                ]}
+                                              >
+                                                {seatNumber}
+                                              </Text>
+                                            ) : null}
                                             {seat.isWindow && (
                                               <View
                                                 style={styles.windowIndicator}
@@ -512,7 +514,10 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
       <View style={styles.selectionInfo}>
         <Text style={styles.selectionText}>
           Selected: {selectedSeats?.length || 0}
-          {hasMaxLimit ? `/${maxSeats}` : ''} seats
+          {hasMaxLimit && typeof maxSeats === 'number'
+            ? `/${maxSeats}`
+            : null}{' '}
+          seats
         </Text>
         {isMaxSeatsSelected && (
           <Text style={styles.maxReachedText}>
