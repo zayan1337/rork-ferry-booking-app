@@ -7,6 +7,8 @@ import {
   XCircle,
   DollarSign,
   Calendar,
+  Wallet,
+  Ticket,
 } from 'lucide-react-native';
 import { StatsSection } from '@/components/admin/common';
 import { formatCurrency } from '@/utils/currencyUtils';
@@ -27,6 +29,8 @@ interface BookingsStatsData {
   todayRefundedAmount?: number;
   todayTripBookings?: number;
   todayCancelledCount?: number;
+  agentCreditBookingsCount?: number; // ✅ Agent credit bookings count
+  freeTicketBookingsCount?: number; // ✅ Free ticket bookings count
 }
 
 interface BookingsStatsProps {
@@ -39,6 +43,8 @@ export default function BookingsStats({ stats, isTablet }: BookingsStatsProps) {
   const todayRefunded = stats.todayRefundedAmount || 0;
   const todayTripBookings = stats.todayTripBookings || 0;
   const todayCancelled = stats.todayCancelledCount || 0;
+  const agentCreditBookings = stats.agentCreditBookingsCount || 0;
+  const freeTicketBookings = stats.freeTicketBookingsCount || 0;
 
   const statItems = [
     {
@@ -106,6 +112,25 @@ export default function BookingsStats({ stats, isTablet }: BookingsStatsProps) {
       subtitle: `${stats.confirmedRate}% success rate`,
       icon: <CheckCircle size={isTablet ? 20 : 18} color={colors.success} />,
       color: colors.success,
+    },
+    {
+      title: 'Agent Credit Used',
+      value: agentCreditBookings.toString(),
+      subtitle: 'Non-revenue bookings',
+      icon: <Wallet size={isTablet ? 20 : 18} color={colors.secondary} />,
+      color: colors.secondary,
+    },
+    {
+      title: 'Free Tickets Used',
+      value: freeTicketBookings.toString(),
+      subtitle: 'Promotional bookings',
+      icon: (
+        <Ticket
+          size={isTablet ? 20 : 18}
+          color={colors.info || colors.primary}
+        />
+      ),
+      color: colors.info || colors.primary,
     },
   ];
 

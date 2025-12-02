@@ -48,6 +48,8 @@ export interface UseAdminBookingManagementReturn {
     todayRefundedAmount?: number;
     todayTripBookings?: number;
     todayCancelledCount?: number;
+    agentCreditBookingsCount?: number; // ✅ Agent credit bookings
+    freeTicketBookingsCount?: number; // ✅ Free ticket bookings
   };
   filters: AdminBookingFilters;
 
@@ -383,6 +385,8 @@ export const useAdminBookingManagement = (
       todayRefundedAmount: stats.today_refunded_amount || 0,
       todayTripBookings: stats.today_trip_bookings || 0,
       todayCancelledCount: stats.today_cancelled_count || 0,
+      agentCreditBookingsCount: stats.agent_credit_bookings_count || 0, // ✅ Agent credit bookings
+      freeTicketBookingsCount: stats.free_ticket_bookings_count || 0, // ✅ Free ticket bookings
     };
   }, [stats]);
 

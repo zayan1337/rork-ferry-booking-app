@@ -1687,13 +1687,23 @@ export const useAgentBookingFormStore = create<
           // Don't throw error - booking was created successfully
         }
       } else if (currentBooking.paymentMethod === 'free') {
-        // For free tickets, use 'wallet' with 0 amount (no receipt needed)
+        // For free tickets, record payment with actual amount charged to client
+        // ✅ CRITICAL BUSINESS LOGIC:
+        // - Business gives ticket FREE to agent
+        // - Agent charges client the discounted fare
+        // - Agent keeps 100% as commission
+        // - Payment record should show what agent received from client
+        const timestamp = Date.now().toString().slice(-8);
+        const bookingRef = booking.booking_number.slice(-5);
+        const receiptNumber = `FREE${timestamp}${bookingRef}`;
+
         const { error: paymentError } = await supabase.from('payments').insert({
           booking_id: booking.id,
           payment_method: 'wallet', // Use wallet for free tickets
-          amount: 0,
+          amount: discountedFare, // ✅ Record the amount agent charged client
           currency: 'MVR',
           status: 'completed',
+          receipt_number: receiptNumber,
           transaction_date: new Date().toISOString(),
         });
 
@@ -2001,12 +2011,16 @@ export const useAgentBookingFormStore = create<
           currentBooking.paymentMethod === 'free'
         ) {
           // For agent credit and free tickets, use 'wallet' as payment method
-          // Generate compact receipt for credit payments only (max 20 chars)
+          // Generate compact receipt for both credit and free payments
           let returnReceiptNumber = null;
           if (currentBooking.paymentMethod === 'credit') {
             const returnTimestamp = Date.now().toString().slice(-8);
             const returnBookingRef = returnBooking.booking_number.slice(-5);
             returnReceiptNumber = `AGT${returnTimestamp}${returnBookingRef}`;
+          } else if (currentBooking.paymentMethod === 'free') {
+            const returnTimestamp = Date.now().toString().slice(-8);
+            const returnBookingRef = returnBooking.booking_number.slice(-5);
+            returnReceiptNumber = `FREE${returnTimestamp}${returnBookingRef}`;
           }
 
           const { error: returnPaymentError } = await supabase
@@ -2014,13 +2028,10 @@ export const useAgentBookingFormStore = create<
             .insert({
               booking_id: returnBooking.id,
               payment_method: 'wallet', // Use wallet for agent payments
-              amount:
-                currentBooking.paymentMethod === 'free'
-                  ? 0
-                  : returnDiscountedFare,
+              amount: returnDiscountedFare, // ✅ Always record actual amount for both credit and free
               currency: 'MVR',
               status: 'completed', // Mark as completed for immediate confirmation
-              receipt_number: returnReceiptNumber, // Compact receipt for credit, null for free
+              receipt_number: returnReceiptNumber, // Compact receipt for both credit and free
               transaction_date: new Date().toISOString(),
             });
 

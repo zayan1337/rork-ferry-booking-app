@@ -216,7 +216,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   passengersContainer: {
-    maxHeight: 300,
+    maxHeight: 600, // ✅ Increased from 300 to 600 for better scrolling with more passengers
   },
   passengerCard: {
     backgroundColor: colors.backgroundSecondary,

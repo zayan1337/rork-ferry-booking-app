@@ -116,6 +116,12 @@ export default function WalletDetailPage() {
           amountValue = 0;
         }
 
+        const status: 'failed' | 'pending' | 'completed' = isFailed
+          ? 'failed'
+          : isPending
+            ? 'pending'
+            : 'completed';
+
         const mappedTransaction = {
           id: tx.id,
           wallet_id: wallet.id,
@@ -123,11 +129,7 @@ export default function WalletDetailPage() {
           user_name: wallet.user_name,
           amount: amountValue,
           transaction_type: transactionType,
-          status: (isFailed
-            ? 'failed'
-            : isPending
-              ? 'pending'
-              : 'completed') as const,
+          status,
           description:
             tx.description ||
             `${rawTransactionType || 'transaction'} transaction`,

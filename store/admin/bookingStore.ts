@@ -316,11 +316,11 @@ export const useAdminBookingStore = create<AdminBookingState>((set, get) => ({
     set({ statsLoading: true });
 
     try {
-      // Get all bookings to calculate stats (include trip_id for today's trip bookings)
+      // Get all bookings to calculate stats (include trip_id for today's trip bookings and payment_method_type for revenue calculation)
       const { data: allBookings, error: bookingsError } = await supabase
         .from('bookings')
         .select(
-          'id, status, total_fare, created_at, trip_id, trip:trip_id(id, travel_date)'
+          'id, status, total_fare, created_at, trip_id, payment_method_type, trip:trip_id(id, travel_date)'
         )
         .order('created_at', { ascending: false });
 
@@ -439,14 +439,24 @@ export const useAdminBookingStore = create<AdminBookingState>((set, get) => ({
       // Revenue statuses and helper function for net revenue calculation
       const confirmedStatuses = ['confirmed', 'checked_in', 'completed'];
 
-      // Helper function to calculate net revenue accounting for refunds
+      // Helper function to calculate net revenue accounting for refunds AND payment methods
       // Business Logic:
-      // - Confirmed/checked_in/completed bookings: Full total_fare as revenue
+      // - MIB bookings (confirmed/checked_in/completed): Full total_fare as revenue (actual money received)
+      // - Agent CREDIT bookings: MVR 0 revenue (money already counted when agent recharged credit)
+      // - FREE ticket bookings: MVR 0 revenue (no money received, it's complimentary)
       // - Cancelled bookings with refund: Net revenue = total_fare - refund_amount (remaining amount kept)
       // - Cancelled bookings without payment: 0 revenue (no payment was made)
       // - Other statuses (reserved, pending_payment): 0 revenue (payment not completed)
       const calculateNetRevenue = (booking: any): number => {
         const totalFare = Number(booking.total_fare || 0);
+        const paymentMethod = booking.payment_method_type;
+
+        // ✅ CRITICAL: Exclude credit and free ticket bookings from revenue
+        // - Credit bookings: Revenue already counted when agent recharged their wallet
+        // - Free tickets: No money received (complimentary service for agent)
+        if (paymentMethod === 'credit' || paymentMethod === 'free') {
+          return 0;
+        }
 
         if (booking.status === 'cancelled') {
           const cancellation = cancellationDetailsMap.get(booking.id);
@@ -464,7 +474,7 @@ export const useAdminBookingStore = create<AdminBookingState>((set, get) => ({
           // Example: Booking MVR 1000, refund MVR 500 → Revenue = MVR 500 (amount kept)
           return Math.max(0, totalFare - cancellation.refund_amount);
         } else if (confirmedStatuses.includes(booking.status)) {
-          // For confirmed/checked_in/completed: full revenue
+          // For confirmed/checked_in/completed MIB bookings: full revenue
           return totalFare;
         }
         // For other statuses (reserved, pending_payment): no revenue
@@ -502,23 +512,75 @@ export const useAdminBookingStore = create<AdminBookingState>((set, get) => ({
       });
       const todayTripBookingsCount = todayTripBookings.length;
 
-      // Total revenue accounting for partial refunds on cancelled bookings
-      const totalRevenue = bookings.reduce(
+      // Booking revenue accounting for partial refunds on cancelled bookings (MIB only)
+      const bookingRevenue = bookings.reduce(
         (sum, b) => sum + calculateNetRevenue(b),
         0
       );
 
-      // Today's revenue accounting for partial refunds
-      const todayRevenue = todayBookingsList.reduce(
+      // ✅ Add agent credit recharge revenue
+      // When agents top up their credit, that's when the business receives actual money
+      // Agent credits are tracked in agent_credit_transactions, NOT wallet_transactions
+      const { data: creditRecharges, error: creditRechargesError } =
+        await supabase
+          .from('agent_credit_transactions')
+          .select('amount, created_at')
+          .eq('transaction_type', 'refill');
+
+      const creditRechargeRevenue =
+        !creditRechargesError && creditRecharges
+          ? creditRecharges.reduce((sum, t) => sum + Number(t.amount || 0), 0)
+          : 0;
+
+      // ✅ Total Revenue = Booking Revenue (MIB only) + Agent Credit Recharges
+      const totalRevenue = bookingRevenue + creditRechargeRevenue;
+
+      // Today's booking revenue accounting for partial refunds
+      const todayBookingRevenue = todayBookingsList.reduce(
         (sum, b) => sum + calculateNetRevenue(b),
         0
       );
 
-      // Yesterday's revenue accounting for partial refunds
-      const yesterdayRevenue = yesterdayBookingsList.reduce(
+      // Today's credit recharge revenue
+      const todayCreditRecharges =
+        !creditRechargesError && creditRecharges
+          ? creditRecharges.filter(t => {
+              const txDate = new Date(t.created_at).toISOString();
+              return txDate >= todayStart && txDate <= todayEnd;
+            })
+          : [];
+
+      const todayCreditRechargeRevenue = todayCreditRecharges.reduce(
+        (sum, t) => sum + Number(t.amount || 0),
+        0
+      );
+
+      // ✅ Total today revenue = Booking Revenue + Credit Recharge Revenue
+      const todayRevenue = todayBookingRevenue + todayCreditRechargeRevenue;
+
+      // Yesterday's booking revenue accounting for partial refunds
+      const yesterdayBookingRevenue = yesterdayBookingsList.reduce(
         (sum, b) => sum + calculateNetRevenue(b),
         0
       );
+
+      // Yesterday's credit recharge revenue
+      const yesterdayCreditRecharges =
+        !creditRechargesError && creditRecharges
+          ? creditRecharges.filter(t => {
+              const txDate = new Date(t.created_at).toISOString();
+              return txDate >= yesterdayStart && txDate <= yesterdayEnd;
+            })
+          : [];
+
+      const yesterdayCreditRechargeRevenue = yesterdayCreditRecharges.reduce(
+        (sum, t) => sum + Number(t.amount || 0),
+        0
+      );
+
+      // ✅ Total yesterday revenue = Booking Revenue + Credit Recharge Revenue
+      const yesterdayRevenue =
+        yesterdayBookingRevenue + yesterdayCreditRechargeRevenue;
 
       // Count by status
       const statusCounts = {
@@ -542,6 +604,14 @@ export const useAdminBookingStore = create<AdminBookingState>((set, get) => ({
       // Calculate today's cancelled bookings count
       const todayCancelledCount = todayBookingsList.filter(
         b => b.status === 'cancelled'
+      ).length;
+
+      // ✅ Count agent credit and free ticket bookings (non-revenue bookings)
+      const agentCreditBookingsCount = bookings.filter(
+        b => b.payment_method_type === 'credit'
+      ).length;
+      const freeTicketBookingsCount = bookings.filter(
+        b => b.payment_method_type === 'free'
       ).length;
 
       const confirmedCount = statusCounts.confirmed;
@@ -590,6 +660,8 @@ export const useAdminBookingStore = create<AdminBookingState>((set, get) => ({
         today_refunded_amount: todayRefundedAmount,
         today_trip_bookings: todayTripBookingsCount,
         today_cancelled_count: todayCancelledCount,
+        agent_credit_bookings_count: agentCreditBookingsCount, // ✅ Non-revenue bookings
+        free_ticket_bookings_count: freeTicketBookingsCount, // ✅ Promotional bookings
       };
 
       set({ stats, statsLoading: false });

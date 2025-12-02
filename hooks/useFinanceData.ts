@@ -417,16 +417,15 @@ export const useFinanceData = () => {
         return [];
       }
 
-      if (
-        (!walletTransactionsLoaded ||
-          (walletTransactions?.length ?? 0) === 0) &&
-        !loading.transactions
-      ) {
-        //  console.log(
-        //    '[getAgentCreditTransactionsByAgent] Wallet transactions not ready, requesting fetch'
-        //  );
-        void fetchWalletTransactions();
-      }
+      // ✅ REMOVED: Don't fetch during render - this causes React setState errors
+      // The calling component should fetch data in useEffect instead
+      // if (
+      //   (!walletTransactionsLoaded ||
+      //     (walletTransactions?.length ?? 0) === 0) &&
+      //   !loading.transactions
+      // ) {
+      //   void fetchWalletTransactions();
+      // }
 
       const baseTransactions = (agentCreditTransactions || []).filter(tx => {
         if (!tx) return false;

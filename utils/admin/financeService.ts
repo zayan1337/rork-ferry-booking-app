@@ -644,10 +644,10 @@ export const fetchFinanceStats = async (): Promise<FinanceStats> => {
     // This includes confirmed, checked_in, completed bookings and cancelled with partial refunds
     const revenueStatuses = ['confirmed', 'checked_in', 'completed'];
 
-    // Fetch all bookings for total revenue calculation
+    // Fetch all bookings for total revenue calculation (need payment_method_type for filtering)
     const { data: allBookingsData, error: allBookingsError } = await supabase
       .from('bookings')
-      .select('id, total_fare, status');
+      .select('id, total_fare, status, payment_method_type');
 
     // Fetch cancellations data for partial refund calculation
     // Match the exact query structure used in bookings store for consistency
@@ -673,15 +673,25 @@ export const fetchFinanceStats = async (): Promise<FinanceStats> => {
       });
     }
 
-    // Helper function to calculate net revenue accounting for refunds
+    // Helper function to calculate net revenue accounting for refunds AND payment methods
     // This matches the exact logic used in dashboardService.ts and bookingStore.ts
     // Business Logic:
-    // - Confirmed/checked_in/completed bookings: Full total_fare as revenue
+    // - MIB bookings (confirmed/checked_in/completed): Full total_fare as revenue (actual money received)
+    // - Agent CREDIT bookings: MVR 0 revenue (money already counted when agent recharged credit)
+    // - FREE ticket bookings: MVR 0 revenue (no money received, it's complimentary)
     // - Cancelled bookings with refund: Net revenue = total_fare - refund_amount (remaining amount kept)
     // - Cancelled bookings without payment: 0 revenue (no payment was made)
     // - Other statuses (reserved, pending_payment): 0 revenue (payment not completed)
     const calculateNetRevenue = (booking: any): number => {
       const totalFare = Number(booking.total_fare || 0);
+      const paymentMethod = booking.payment_method_type;
+
+      // ✅ CRITICAL: Exclude credit and free ticket bookings from booking revenue
+      // - Credit bookings: Revenue already counted when agent recharged their wallet
+      // - Free tickets: No money received (complimentary service for agent)
+      if (paymentMethod === 'credit' || paymentMethod === 'free') {
+        return 0;
+      }
 
       if (booking.status === 'cancelled') {
         const cancellation = cancellationDetailsMap.get(booking.id);
@@ -699,26 +709,104 @@ export const fetchFinanceStats = async (): Promise<FinanceStats> => {
         // Example: Booking MVR 1000, refund MVR 500 → Revenue = MVR 500 (amount kept)
         return Math.max(0, totalFare - cancellation.refund_amount);
       } else if (revenueStatuses.includes(booking.status)) {
-        // For confirmed/checked_in/completed: full revenue
+        // For confirmed/checked_in/completed MIB bookings: full revenue
         return totalFare;
       }
       // For other statuses (reserved, pending_payment): no revenue
       return 0;
     };
 
-    // Calculate total revenue from bookings (matching dashboard)
-    let totalRevenue = 0;
+    // Calculate booking revenue from MIB bookings only (matching dashboard)
+    let bookingRevenue = 0;
     if (!allBookingsError && allBookingsData) {
-      totalRevenue = allBookingsData.reduce(
+      bookingRevenue = allBookingsData.reduce(
         (sum, b) => sum + calculateNetRevenue(b),
         0
       );
     }
 
+    // ✅ Add agent credit recharge revenue
+    // When agents top up their credit, that's when the business receives actual money
+    // Agent credits are tracked in agent_credit_transactions, NOT wallet_transactions
+    const { data: creditRecharges, error: creditRechargesError } =
+      await supabase
+        .from('agent_credit_transactions')
+        .select('amount, created_at')
+        .eq('transaction_type', 'refill');
+
+    const creditRechargeRevenue =
+      !creditRechargesError && creditRecharges
+        ? creditRecharges.reduce((sum, t) => sum + Number(t.amount), 0)
+        : 0;
+
+    // ✅ Total Revenue = Booking Revenue (MIB only) + Agent Credit Recharges
+    const totalRevenue = bookingRevenue + creditRechargeRevenue;
+
+    // ✅ Calculate today's revenue (bookings + credit recharges)
     const today = new Date().toISOString().split('T')[0];
-    const todayRevenue = completedPayments
+    const todayBookingRevenue = completedPayments
       .filter(p => p.created_at.startsWith(today))
       .reduce((sum, p) => sum + Number(p.amount), 0);
+
+    const todayCreditRecharges =
+      !creditRechargesError && creditRecharges
+        ? creditRecharges.filter(
+            t => t.created_at && t.created_at.startsWith(today)
+          )
+        : [];
+
+    const todayCreditRechargeRevenue = todayCreditRecharges.reduce(
+      (sum, t) => sum + Number(t.amount || 0),
+      0
+    );
+
+    const todayRevenue = todayBookingRevenue + todayCreditRechargeRevenue;
+
+    // ✅ Calculate weekly revenue (last 7 days)
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const sevenDaysAgoStr = sevenDaysAgo.toISOString();
+
+    const weeklyBookingRevenue = completedPayments
+      .filter(p => p.created_at >= sevenDaysAgoStr)
+      .reduce((sum, p) => sum + Number(p.amount), 0);
+
+    const weeklyCreditRecharges =
+      !creditRechargesError && creditRecharges
+        ? creditRecharges.filter(
+            t => t.created_at && t.created_at >= sevenDaysAgoStr
+          )
+        : [];
+
+    const weeklyCreditRechargeRevenue = weeklyCreditRecharges.reduce(
+      (sum, t) => sum + Number(t.amount || 0),
+      0
+    );
+
+    const weeklyRevenue = weeklyBookingRevenue + weeklyCreditRechargeRevenue;
+
+    // ✅ Calculate monthly revenue (last 30 days)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const thirtyDaysAgoStr = thirtyDaysAgo.toISOString();
+
+    const monthlyBookingRevenue = completedPayments
+      .filter(p => p.created_at >= thirtyDaysAgoStr)
+      .reduce((sum, p) => sum + Number(p.amount), 0);
+
+    const monthlyCreditRecharges =
+      !creditRechargesError && creditRecharges
+        ? creditRecharges.filter(
+            t => t.created_at && t.created_at >= thirtyDaysAgoStr
+          )
+        : [];
+
+    const monthlyCreditRechargeRevenue = monthlyCreditRecharges.reduce(
+      (sum, t) => sum + Number(t.amount || 0),
+      0
+    );
+
+    const monthlyRevenue = monthlyBookingRevenue + monthlyCreditRechargeRevenue;
 
     const paymentSuccessRate =
       paymentStats && paymentStats.length > 0
@@ -739,14 +827,17 @@ export const fetchFinanceStats = async (): Promise<FinanceStats> => {
     return {
       totalWalletBalance,
       activeWallets,
-      weeklyRevenue: todayRevenue * 7, // Simplified calculation
-      monthlyRevenue: todayRevenue * 30, // Simplified calculation
+      weeklyRevenue, // ✅ Last 7 days (bookings + credit recharges)
+      monthlyRevenue, // ✅ Last 30 days (bookings + credit recharges)
       paymentSuccessRate,
       completedPayments: completedPayments.length,
       pendingPayments: pendingPayments.length,
       failedPayments: failedPayments.length,
-      totalRevenue,
+      totalRevenue, // ✅ Total = Booking Revenue + Credit Recharge Revenue
       averageTransactionAmount,
+      bookingRevenue, // ✅ Revenue from MIB bookings
+      creditRechargeRevenue, // ✅ Revenue from agent credit recharges
+      todayRevenue, // ✅ Today's revenue (bookings + credit recharges)
     };
   } catch (error) {
     console.error('Failed to fetch finance stats:', error);

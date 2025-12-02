@@ -20,6 +20,8 @@ interface FinanceStatsProps {
   failedPayments: number;
   totalPayments: number;
   isTablet?: boolean;
+  bookingRevenue?: number; // ✅ Revenue from MIB bookings
+  creditRechargeRevenue?: number; // ✅ Revenue from agent credit recharges
 }
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -34,6 +36,8 @@ function FinanceStats({
   failedPayments,
   totalPayments,
   isTablet = screenWidth >= 768,
+  bookingRevenue = 0,
+  creditRechargeRevenue = 0,
 }: FinanceStatsProps) {
   // Memoize calculations to prevent unnecessary re-renders
   const stats = useMemo(() => {
@@ -124,7 +128,7 @@ function FinanceStats({
             title='Total Revenue'
             value={stats.formatCurrency(totalRevenue)}
             color={colors.success}
-            subtitle='All time'
+            subtitle={`Bookings: ${stats.formatCurrency(bookingRevenue)} • Credits: ${stats.formatCurrency(creditRechargeRevenue)}`}
             size={isTablet ? 'large' : 'medium'}
           />
           <StatCard

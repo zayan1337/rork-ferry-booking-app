@@ -91,14 +91,17 @@ export interface PaymentReport {
 export interface FinanceStats {
   totalWalletBalance: number;
   activeWallets: number;
-  weeklyRevenue: number;
-  monthlyRevenue: number;
+  weeklyRevenue: number; // ✅ Last 7 days (bookings + credit recharges)
+  monthlyRevenue: number; // ✅ Last 30 days (bookings + credit recharges)
   paymentSuccessRate: number;
   completedPayments: number;
   pendingPayments: number;
   failedPayments: number;
-  totalRevenue: number;
+  totalRevenue: number; // ✅ All time (bookings + credit recharges)
   averageTransactionAmount: number;
+  bookingRevenue?: number; // ✅ Revenue from MIB bookings only
+  creditRechargeRevenue?: number; // ✅ Revenue from agent credit recharges
+  todayRevenue?: number; // ✅ Today's revenue (bookings + credit recharges)
 }
 
 export interface PaymentMethodStats {

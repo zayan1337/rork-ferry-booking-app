@@ -1726,6 +1726,8 @@ export interface AdminBookingStats {
   today_refunded_amount?: number;
   today_trip_bookings?: number;
   today_cancelled_count?: number;
+  agent_credit_bookings_count?: number; // ✅ Count of bookings paid with agent credit
+  free_ticket_bookings_count?: number; // ✅ Count of free ticket bookings
 }
 
 export interface AdminBookingFilters {

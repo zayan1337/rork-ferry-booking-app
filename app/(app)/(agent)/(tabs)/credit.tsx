@@ -624,11 +624,10 @@ export default function AgentCreditScreen() {
         desc.includes('(canceled)');
 
       // Mark failed transactions with a special flag
+      // Keep original type for calculations, isFailed flag is used for display/filtering
       return {
         ...t,
         isFailed,
-        // Override type for failed refills to show correctly
-        type: isFailed ? ('failed' as const) : t.type,
       };
     });
 
@@ -923,8 +922,7 @@ export default function AgentCreditScreen() {
                     {
                       color:
                         recentTransactions.reduce(
-                          (sum, t) =>
-                            sum + (t.type === 'refill' ? t.amount : -t.amount),
+                          (sum, t) => sum + t.amount,
                           0
                         ) >= 0
                           ? Colors.success
@@ -934,11 +932,7 @@ export default function AgentCreditScreen() {
                 >
                   {formatCurrency(
                     Math.abs(
-                      recentTransactions.reduce(
-                        (sum, t) =>
-                          sum + (t.type === 'refill' ? t.amount : -t.amount),
-                        0
-                      )
+                      recentTransactions.reduce((sum, t) => sum + t.amount, 0)
                     )
                   )}
                 </Text>

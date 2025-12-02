@@ -666,14 +666,12 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     if (!agentId) {
       return [];
     }
-    const hasTransactions = Array.isArray(state.walletTransactions);
-    const needsFetch =
-      !state.walletTransactionsLoaded ||
-      (hasTransactions && state.walletTransactions.length === 0);
 
-    if (needsFetch && !state.loading.transactions) {
-      void state.fetchWalletTransactions();
-    }
+    // ❌ REMOVED: Do NOT call fetchWalletTransactions() here!
+    // This causes "setState in render" error when called from useMemo/useCallback
+    // Data fetching should be done in useEffect in the component, not in getter functions
+
+    const hasTransactions = Array.isArray(state.walletTransactions);
 
     if (!hasTransactions || state.walletTransactions.length === 0) {
       return [];

@@ -165,6 +165,8 @@ function FinanceScreen() {
         failedPayments={stats.failedPayments || 0}
         totalPayments={payments?.length || 0}
         isTablet={isTablet}
+        bookingRevenue={stats.bookingRevenue || 0}
+        creditRechargeRevenue={stats.creditRechargeRevenue || 0}
       />
 
       {/* Section Selector */}
