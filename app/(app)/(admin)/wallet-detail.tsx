@@ -56,11 +56,6 @@ export default function WalletDetailPage() {
     if (!wallet || !isCreditAccount) return [];
     const transactions = getAgentCreditTransactionsByAgent(wallet.user_id);
 
-    // Debug logging to track transaction data
-    if (transactions.length > 0) {
-    } else {
-    }
-
     return transactions
       .filter(tx => {
         // Defensive check: ensure transaction has required fields
@@ -138,21 +133,6 @@ export default function WalletDetailPage() {
             tx.created_at || tx.transaction_date || new Date().toISOString(),
           isFailed, // Mark failed transactions with flag
         };
-
-        // Log each mapped transaction for debugging
-        // console.log('[wallet-detail] Mapped transaction:', {
-        //   original: {
-        //     id: tx.id,
-        //     transaction_type: rawTransactionType,
-        //     amount: tx.amount,
-        //     amountType: typeof tx.amount,
-        //   },
-        //   mapped: {
-        //     id: mappedTransaction.id,
-        //     transaction_type: mappedTransaction.transaction_type,
-        //     amount: mappedTransaction.amount,
-        //   },
-        // });
 
         return mappedTransaction;
       });

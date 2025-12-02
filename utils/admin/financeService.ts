@@ -66,15 +66,6 @@ export const fetchWallets = async (
     }
 
     // Note: We continue even if wallets is empty, because we also fetch agent credit accounts
-    if (!wallets || wallets.length === 0) {
-      console.log(
-        'ℹ️ [fetchWallets] No wallets found in database, will check for agent credit accounts'
-      );
-    } else {
-      console.log(
-        `✅ [fetchWallets] Found ${wallets.length} wallet(s) in database`
-      );
-    }
 
     // Also fetch agent credit accounts (agents don't have wallets, they use credit_balance)
     const { data: agentProfiles, error: agentProfilesError } = await supabase
@@ -88,10 +79,6 @@ export const fetchWallets = async (
       console.warn(
         '⚠️ [fetchWallets] Error fetching agent profiles:',
         agentProfilesError
-      );
-    } else {
-      console.log(
-        `✅ [fetchWallets] Found ${agentProfiles?.length || 0} agent credit account(s)`
       );
     }
 
@@ -117,10 +104,6 @@ export const fetchWallets = async (
         profilesError
       );
       // Continue without user profiles
-    } else {
-      console.log(
-        `✅ [fetchWallets] Found ${userProfiles?.length || 0} user profile(s)`
-      );
     }
 
     // Combine wallet data with user profiles
@@ -212,9 +195,6 @@ export const fetchWallets = async (
       );
     }
 
-    console.log(
-      `✅ [fetchWallets] Returning ${allAccounts.length} account(s) (${walletsWithUsers.length} wallets + ${agentCreditAccounts.length} agent credit accounts)`
-    );
     return allAccounts;
   } catch (error) {
     console.error('❌ [fetchWallets] Failed to fetch wallets:', error);
@@ -246,11 +226,8 @@ export const createWalletsForAllUsers = async (): Promise<{
     }
 
     if (!users || users.length === 0) {
-      console.log('ℹ️ No active agent users found');
       return { created: 0, skipped: 0, errors: 0 };
     }
-
-    console.log(`📊 Found ${users.length} active agent user(s)`);
 
     // Get all existing wallets
     const { data: existingWallets, error: walletsError } = await supabase
@@ -272,17 +249,12 @@ export const createWalletsForAllUsers = async (): Promise<{
     );
 
     if (agentsWithoutWallets.length === 0) {
-      console.log('✅ All agent users already have wallets');
       return {
         created: 0,
         skipped: users.length,
         errors: 0,
       };
     }
-
-    console.log(
-      `📝 Creating wallets for ${agentsWithoutWallets.length} agent user(s) without wallets`
-    );
 
     // Create wallets for agent users without them
     const walletInserts = agentsWithoutWallets.map(user => ({
@@ -300,10 +272,6 @@ export const createWalletsForAllUsers = async (): Promise<{
       console.error('Error creating wallets:', createError);
       throw createError;
     }
-
-    console.log(
-      `✅ Created ${createdWallets?.length || 0} wallet(s) for agent users without wallets`
-    );
 
     return {
       created: createdWallets?.length || 0,
