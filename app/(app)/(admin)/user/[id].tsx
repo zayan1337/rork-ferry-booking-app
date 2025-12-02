@@ -556,6 +556,7 @@ export default function UserDetailsPage() {
 
             stats.creditLimit = profileData.data?.credit_ceiling || 0;
             stats.availableCredit = profileData.data?.credit_balance || 0;
+            stats.agentDiscount = profileData.data?.agent_discount || 0;
             stats.freeTicketsAllocation =
               profileData.data?.free_tickets_allocation || 0;
             stats.freeTicketsRemaining =
@@ -933,6 +934,7 @@ export default function UserDetailsPage() {
           activeBookings: userStatsData?.activeBookings || 0,
           creditLimit: userStatsData?.creditLimit || 0,
           availableCredit: userStatsData?.availableCredit || 0,
+          agentDiscount: userStatsData?.agentDiscount || 0,
           freeTicketsAllocation: userStatsData?.freeTicketsAllocation || 0,
           freeTicketsRemaining: userStatsData?.freeTicketsRemaining || 0,
         } as typeof baseStats & {
@@ -941,6 +943,7 @@ export default function UserDetailsPage() {
           activeBookings: number;
           creditLimit: number;
           availableCredit: number;
+          agentDiscount: number;
           freeTicketsAllocation: number;
           freeTicketsRemaining: number;
         };
@@ -1103,6 +1106,97 @@ export default function UserDetailsPage() {
 
           {/* User Information */}
           <UserInfoSection user={user} />
+
+          {/* Agent-Specific Information */}
+          {user.role === 'agent' && userStats && (
+            <View style={styles.agentInfoCard}>
+              <Text style={styles.sectionTitle}>Agent Information</Text>
+
+              <View style={styles.agentInfoGrid}>
+                {/* Agent Discount */}
+                <View style={styles.agentInfoItem}>
+                  <View style={styles.agentInfoIcon}>
+                    <DollarSign size={20} color={colors.success} />
+                  </View>
+                  <View style={styles.agentInfoContent}>
+                    <Text style={styles.agentInfoLabel}>Agent Discount</Text>
+                    <Text style={styles.agentInfoValue}>
+                      {(userStats as any).agentDiscount}%
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Credit Limit */}
+                <View style={styles.agentInfoItem}>
+                  <View style={styles.agentInfoIcon}>
+                    <DollarSign size={20} color={colors.primary} />
+                  </View>
+                  <View style={styles.agentInfoContent}>
+                    <Text style={styles.agentInfoLabel}>Credit Limit</Text>
+                    <Text style={styles.agentInfoValue}>
+                      MVR {(userStats as any).creditLimit.toLocaleString()}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Available Credit */}
+                <View style={styles.agentInfoItem}>
+                  <View style={styles.agentInfoIcon}>
+                    <DollarSign size={20} color={colors.info} />
+                  </View>
+                  <View style={styles.agentInfoContent}>
+                    <Text style={styles.agentInfoLabel}>Available Credit</Text>
+                    <Text style={styles.agentInfoValue}>
+                      MVR {(userStats as any).availableCredit.toLocaleString()}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Free Tickets Allocation */}
+                <View style={styles.agentInfoItem}>
+                  <View style={styles.agentInfoIcon}>
+                    <Ship size={20} color={colors.primary} />
+                  </View>
+                  <View style={styles.agentInfoContent}>
+                    <Text style={styles.agentInfoLabel}>
+                      Free Tickets Limit
+                    </Text>
+                    <Text style={styles.agentInfoValue}>
+                      {(userStats as any).freeTicketsAllocation} tickets
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Free Tickets Remaining */}
+                <View style={styles.agentInfoItem}>
+                  <View style={styles.agentInfoIcon}>
+                    <Ship size={20} color={colors.success} />
+                  </View>
+                  <View style={styles.agentInfoContent}>
+                    <Text style={styles.agentInfoLabel}>
+                      Free Tickets Available
+                    </Text>
+                    <Text style={styles.agentInfoValue}>
+                      {(userStats as any).freeTicketsRemaining} tickets
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Total Commissions */}
+                <View style={styles.agentInfoItem}>
+                  <View style={styles.agentInfoIcon}>
+                    <DollarSign size={20} color={colors.warning} />
+                  </View>
+                  <View style={styles.agentInfoContent}>
+                    <Text style={styles.agentInfoLabel}>Total Commissions</Text>
+                    <Text style={styles.agentInfoValue}>
+                      MVR {(userStats as any).totalCommissions.toLocaleString()}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            </View>
+          )}
 
           {/* Role-Specific Actions */}
           <UserActionsSection
@@ -1345,6 +1439,57 @@ const styles = StyleSheet.create({
   actionsContainer: {
     gap: 16,
     marginTop: 8,
+  },
+  // Agent Info Styles
+  agentInfoCard: {
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    padding: 24,
+    marginBottom: 20,
+    shadowColor: colors.shadowMedium,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  agentInfoGrid: {
+    gap: 16,
+  },
+  agentInfoItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    backgroundColor: colors.backgroundSecondary,
+    padding: 16,
+    borderRadius: 12,
+  },
+  agentInfoIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  agentInfoContent: {
+    flex: 1,
+  },
+  agentInfoLabel: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  agentInfoValue: {
+    fontSize: 18,
+    color: colors.text,
+    fontWeight: '700',
+    lineHeight: 24,
   },
   // Trip Details Styles
   tripDetailsCard: {

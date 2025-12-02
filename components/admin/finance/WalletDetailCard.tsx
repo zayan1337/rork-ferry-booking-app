@@ -91,12 +91,20 @@ function WalletDetailCard({
       };
     }
 
-    // Filter and validate transactions
+    // Filter and validate transactions (exclude failed transactions from stats)
     const credits = transactions.filter(
-      t => t && t.transaction_type === 'credit' && typeof t.amount === 'number'
+      t =>
+        t &&
+        t.transaction_type === 'credit' &&
+        typeof t.amount === 'number' &&
+        !(t as any).isFailed
     );
     const debits = transactions.filter(
-      t => t && t.transaction_type === 'debit' && typeof t.amount === 'number'
+      t =>
+        t &&
+        t.transaction_type === 'debit' &&
+        typeof t.amount === 'number' &&
+        !(t as any).isFailed
     );
 
     // Calculate totals with defensive checks
@@ -281,6 +289,10 @@ function WalletDetailCard({
       return null;
     }
 
+    // Check if transaction is failed
+    const isFailed = (item as any).isFailed || item.status === 'failed';
+    const isPending = item.status === 'pending';
+
     // Determine transaction type with fallback
     const isCredit = item.transaction_type === 'credit';
     const isDebit = item.transaction_type === 'debit';
@@ -298,10 +310,28 @@ function WalletDetailCard({
     const amount =
       typeof item.amount === 'number' ? item.amount : Number(item.amount) || 0;
 
+    // Determine color based on status
+    const amountColor = isFailed
+      ? colors.danger
+      : isPending
+        ? colors.warning
+        : isCredit
+          ? colors.success
+          : colors.danger;
+
     return (
-      <View style={styles.transactionItem}>
+      <View
+        style={[
+          styles.transactionItem,
+          isFailed && { opacity: 0.6, backgroundColor: `${colors.danger}05` },
+        ]}
+      >
         <View style={styles.transactionIcon}>
-          {isCredit ? (
+          {isFailed ? (
+            <TrendingDown size={20} color={colors.danger} />
+          ) : isPending ? (
+            <Activity size={20} color={colors.warning} />
+          ) : isCredit ? (
             <TrendingUp size={20} color={colors.success} />
           ) : (
             <TrendingDown size={20} color={colors.danger} />
@@ -319,17 +349,40 @@ function WalletDetailCard({
               Ref: {item.reference_id}
             </Text>
           )}
+          {(isFailed || isPending) && (
+            <View
+              style={[
+                styles.statusBadge,
+                {
+                  backgroundColor: isFailed
+                    ? `${colors.danger}20`
+                    : `${colors.warning}20`,
+                  marginTop: 4,
+                  alignSelf: 'flex-start',
+                  paddingHorizontal: 8,
+                  paddingVertical: 2,
+                  borderRadius: 8,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.statusText,
+                  {
+                    color: isFailed ? colors.danger : colors.warning,
+                    fontSize: 10,
+                    fontWeight: '600',
+                  },
+                ]}
+              >
+                {isFailed ? 'FAILED' : 'PENDING'}
+              </Text>
+            </View>
+          )}
         </View>
         <View style={styles.transactionAmount}>
-          <Text
-            style={[
-              styles.transactionAmountText,
-              {
-                color: isCredit ? colors.success : colors.danger,
-              },
-            ]}
-          >
-            {isCredit ? '+' : '-'}
+          <Text style={[styles.transactionAmountText, { color: amountColor }]}>
+            {isCredit && !isFailed ? '+' : '-'}
             {formatCurrency(amount)}
           </Text>
         </View>

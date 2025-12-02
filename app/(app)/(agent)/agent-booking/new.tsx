@@ -562,9 +562,8 @@ export default function AgentNewBookingScreen() {
             currentBooking.returnSelectedSeats.length;
 
           // Validate free tickets
-          const { validateAgentFreeTickets } = await import(
-            '@/utils/agentUtils'
-          );
+          const { validateAgentFreeTickets } =
+            await import('@/utils/agentUtils');
           const freeTicketValidation = validateAgentFreeTickets(
             storeAgent,
             totalTicketsNeeded

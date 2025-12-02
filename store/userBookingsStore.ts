@@ -31,8 +31,7 @@ interface UserBookingsStoreActions {
 }
 
 interface UserBookingsStore
-  extends UserBookingsStoreState,
-    UserBookingsStoreActions {}
+  extends UserBookingsStoreState, UserBookingsStoreActions {}
 
 export const useUserBookingsStore = create<UserBookingsStore>((set, get) => {
   let bookingSubscription: ReturnType<typeof supabase.channel> | null = null;

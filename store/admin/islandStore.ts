@@ -20,7 +20,8 @@ type SearchableActions<T> = AdminManagement.SearchableActions<T>;
 // ============================================================================
 
 interface IslandStoreState
-  extends BaseStoreState<Island>,
+  extends
+    BaseStoreState<Island>,
     FilterableStoreState<Island, IslandFilters>,
     StatsStoreState<IslandStats> {
   // Computed data
@@ -33,8 +34,7 @@ interface IslandStoreState
 }
 
 interface IslandStoreActions
-  extends BaseCrudActions<Island, IslandFormData>,
-    SearchableActions<Island> {
+  extends BaseCrudActions<Island, IslandFormData>, SearchableActions<Island> {
   // Island-specific actions
   fetchIslandsByZone: (zoneId: string) => Promise<Island[]>;
 

@@ -350,9 +350,8 @@ export default function PaymentSuccessScreen() {
           if (result === 'SUCCESS') {
             // Manually update the payment and booking status in the database
             try {
-              const { manuallyUpdatePaymentStatus } = await import(
-                '@/utils/paymentUtils'
-              );
+              const { manuallyUpdatePaymentStatus } =
+                await import('@/utils/paymentUtils');
               await manuallyUpdatePaymentStatus(bookingId);
             } catch (updateError) {
               // Silent fallback

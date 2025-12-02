@@ -1475,9 +1475,8 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
               returnSeatConfirmation.failed_seats.length > 0
             ) {
               // Return seat confirmation failed - execute rollback
-              const { executeRollback } = await import(
-                '@/utils/bookingCleanup'
-              );
+              const { executeRollback } =
+                await import('@/utils/bookingCleanup');
               await executeRollback(returnRollbackStack);
               console.error(
                 'Failed to confirm return seat reservations:',

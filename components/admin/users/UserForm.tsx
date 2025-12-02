@@ -80,6 +80,9 @@ export default function UserForm({
   const [originalIsSuperAdmin, setOriginalIsSuperAdmin] =
     useState<boolean>(false);
   const [isSuperAdmin, setIsSuperAdmin] = useState<boolean>(false);
+  const [agentDiscount, setAgentDiscount] = useState<string>('');
+  const [originalAgentDiscount, setOriginalAgentDiscount] =
+    useState<string>('');
 
   // Fetch user data to get original role and agent fields
   useEffect(() => {
@@ -90,7 +93,7 @@ export default function UserForm({
           const { data, error } = await supabase
             .from('user_profiles')
             .select(
-              'role, credit_ceiling, free_tickets_allocation, is_super_admin'
+              'role, credit_ceiling, free_tickets_allocation, is_super_admin, agent_discount'
             )
             .eq('id', userId)
             .single();
@@ -104,11 +107,14 @@ export default function UserForm({
             const creditCeilingValue = data.credit_ceiling?.toString() || '';
             const freeTicketsValue =
               data.free_tickets_allocation?.toString() || '';
+            const discountValue = data.agent_discount?.toString() || '';
 
             setCreditCeiling(creditCeilingValue);
             setFreeTicketsAllocation(freeTicketsValue);
+            setAgentDiscount(discountValue);
             setOriginalCreditCeiling(creditCeilingValue);
             setOriginalFreeTicketsAllocation(freeTicketsValue);
+            setOriginalAgentDiscount(discountValue);
           }
         } catch (error) {
           console.error('Error fetching user data:', error);
@@ -122,10 +128,11 @@ export default function UserForm({
   // Check if agent-specific fields have changed
   const hasAgentFieldsChanged = Boolean(
     formData.role === 'agent' &&
-      userId &&
-      (creditCeiling !== originalCreditCeiling ||
-        freeTicketsAllocation !== originalFreeTicketsAllocation ||
-        isSuperAdmin !== originalIsSuperAdmin)
+    userId &&
+    (creditCeiling !== originalCreditCeiling ||
+      freeTicketsAllocation !== originalFreeTicketsAllocation ||
+      agentDiscount !== originalAgentDiscount ||
+      isSuperAdmin !== originalIsSuperAdmin)
   );
 
   // Track form changes including agent-specific fields
@@ -250,6 +257,11 @@ export default function UserForm({
           // For existing agents, only update the allocation limit, don't touch remaining
         }
 
+        // Update agent discount if changed
+        if (agentDiscount !== originalAgentDiscount) {
+          updateData.agent_discount = parseFloat(agentDiscount) || 0;
+        }
+
         // Only update if there are changes
         if (Object.keys(updateData).length > 0) {
           const { error: updateError } = await supabase
@@ -267,6 +279,9 @@ export default function UserForm({
           }
           if (freeTicketsAllocation !== originalFreeTicketsAllocation) {
             setOriginalFreeTicketsAllocation(freeTicketsAllocation);
+          }
+          if (agentDiscount !== originalAgentDiscount) {
+            setOriginalAgentDiscount(agentDiscount);
           }
         }
       }
@@ -326,6 +341,7 @@ export default function UserForm({
     // Reset agent-specific fields to original values
     setCreditCeiling(originalCreditCeiling);
     setFreeTicketsAllocation(originalFreeTicketsAllocation);
+    setAgentDiscount(originalAgentDiscount);
     setIsSuperAdmin(originalIsSuperAdmin);
   };
 
@@ -603,6 +619,31 @@ export default function UserForm({
                   placeholder='Enter number of free tickets'
                   keyboardType='number-pad'
                   description='Number of free tickets allocated to this agent'
+                />
+              </View>
+
+              <View style={styles.formGroup}>
+                <TextInput
+                  label='Agent Discount (%)'
+                  value={agentDiscount}
+                  onChangeText={text => {
+                    const num = text.replace(/[^0-9.]/g, '');
+                    // Ensure only one decimal point
+                    const parts = num.split('.');
+                    if (parts.length > 2) {
+                      return;
+                    }
+                    // Limit to 100
+                    const value = parseFloat(num);
+                    if (!isNaN(value) && value > 100) {
+                      setAgentDiscount('100');
+                    } else {
+                      setAgentDiscount(num);
+                    }
+                  }}
+                  placeholder='Enter discount percentage (0-100)'
+                  keyboardType='decimal-pad'
+                  description='Discount percentage for this agent (0-100%)'
                 />
               </View>
             </View>

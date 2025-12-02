@@ -207,6 +207,7 @@ export default function LoginScreen() {
   const suggestions = getSuggestions();
 
   const handleSelectSuggestion = (credential: SavedCredential) => {
+    // Auto-fill both username and password (password is not shown in UI)
     setFormData({
       username: credential.username,
       password: credential.password,

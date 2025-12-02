@@ -3305,11 +3305,14 @@ const styles = StyleSheet.create({
   ferryRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 8,
   },
   rowLabelContainer: {
-    width: 24,
-    marginRight: 12,
+    width: 32,
+    marginRight: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   rowLabel: {
     fontSize: 10,
@@ -3320,15 +3323,18 @@ const styles = StyleSheet.create({
   seatGroupsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
   },
   seatGroup: {
     flexDirection: 'row',
+    gap: 2,
   },
   aisle: {
-    width: 16,
-    height: 1,
-    backgroundColor: Colors.border,
-    marginHorizontal: 8,
+    width: 12,
+    height: 24,
+    backgroundColor: 'transparent',
+    marginHorizontal: 4,
   },
   seat: {
     width: 32,

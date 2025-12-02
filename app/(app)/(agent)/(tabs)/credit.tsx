@@ -562,6 +562,7 @@ export default function AgentCreditScreen() {
         .select('*')
         .eq('user_id', agent.id)
         .eq('transaction_type', 'credit')
+        .eq('status', 'completed') // Only fetch completed transactions
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -612,8 +613,26 @@ export default function AgentCreditScreen() {
   });
 
   // Combined transactions (credit + wallet)
+  // Mark failed/cancelled transactions and include all for display
   const allTransactions = useMemo(() => {
-    const combined = [...(creditTransactions || []), ...walletTransactions];
+    // Process credit transactions and mark failed/cancelled ones
+    const processedCreditTransactions = (creditTransactions || []).map(t => {
+      const desc = t.description?.toLowerCase() || '';
+      const isFailed =
+        desc.includes('(failed)') ||
+        desc.includes('(cancelled)') ||
+        desc.includes('(canceled)');
+
+      // Mark failed transactions with a special flag
+      return {
+        ...t,
+        isFailed,
+        // Override type for failed refills to show correctly
+        type: isFailed ? ('failed' as const) : t.type,
+      };
+    });
+
+    const combined = [...processedCreditTransactions, ...walletTransactions];
     // Sort by date (newest first)
     const sorted = combined.sort(
       (a, b) =>
@@ -666,7 +685,9 @@ export default function AgentCreditScreen() {
   };
 
   const creditSummary = useMemo(() => {
-    const summary = calculateCreditSummary(agent, allTransactions);
+    // Filter out failed transactions for summary calculation
+    const validTransactions = allTransactions.filter(t => !(t as any).isFailed);
+    const summary = calculateCreditSummary(agent, validTransactions);
     return summary;
   }, [agent, allTransactions]);
 
@@ -741,13 +762,13 @@ export default function AgentCreditScreen() {
     return sorted;
   }, [allTransactions, activeFilter, searchQuery, sortBy]);
 
-  // Calculate filtered statistics
+  // Calculate filtered statistics (excluding failed transactions)
   const filteredStats = useMemo(() => {
     const refills = filteredAndSortedTransactions.filter(
-      t => t.type === 'refill'
+      t => t.type === 'refill' && !(t as any).isFailed
     );
     const deductions = filteredAndSortedTransactions.filter(
-      t => t.type === 'deduction'
+      t => t.type === 'deduction' && !(t as any).isFailed
     );
 
     return {
@@ -766,13 +787,15 @@ export default function AgentCreditScreen() {
     };
   }, [filteredAndSortedTransactions]);
 
-  // Get recent transactions (last 7 days) - using combined transactions
+  // Get recent transactions (last 7 days) - using combined transactions (excluding failed)
   const recentTransactions = useMemo(() => {
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
     return (
-      allTransactions?.filter(t => new Date(t.createdAt) >= sevenDaysAgo) || []
+      allTransactions?.filter(
+        t => new Date(t.createdAt) >= sevenDaysAgo && !(t as any).isFailed
+      ) || []
     );
   }, [allTransactions]);
 

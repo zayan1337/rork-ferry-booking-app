@@ -71,6 +71,16 @@ export default function WalletDetailPage() {
         return true;
       })
       .map(tx => {
+        // Check if transaction is failed/cancelled
+        const desc = tx.description?.toLowerCase() || '';
+        const isFailed =
+          desc.includes('(failed)') ||
+          desc.includes('(cancelled)') ||
+          desc.includes('(canceled)') ||
+          desc.includes('failed') ||
+          desc.includes('cancelled');
+
+        const isPending = desc.includes('pending');
         // Explicitly handle transaction types: 'refill' = credit, 'deduction' = debit
         const rawTransactionType = tx.transaction_type;
         let transactionType: 'credit' | 'debit';
@@ -113,13 +123,18 @@ export default function WalletDetailPage() {
           user_name: wallet.user_name,
           amount: amountValue,
           transaction_type: transactionType,
-          status: 'completed' as const,
+          status: (isFailed
+            ? 'failed'
+            : isPending
+              ? 'pending'
+              : 'completed') as const,
           description:
             tx.description ||
             `${rawTransactionType || 'transaction'} transaction`,
           reference_id: tx.booking_id || undefined,
           created_at:
             tx.created_at || tx.transaction_date || new Date().toISOString(),
+          isFailed, // Mark failed transactions with flag
         };
 
         // Log each mapped transaction for debugging

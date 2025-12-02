@@ -21,7 +21,8 @@ type SearchableActions<T> = AdminManagement.SearchableActions<T>;
 // ============================================================================
 
 interface RouteStoreState
-  extends BaseStoreState<Route>,
+  extends
+    BaseStoreState<Route>,
     FilterableStoreState<Route, RouteFilters>,
     StatsStoreState<RouteStats> {
   // Computed data
@@ -43,8 +44,7 @@ interface RouteStoreState
 }
 
 interface RouteStoreActions
-  extends BaseCrudActions<Route, RouteFormData>,
-    SearchableActions<Route> {
+  extends BaseCrudActions<Route, RouteFormData>, SearchableActions<Route> {
   // Route-specific actions
   fetchRouteDetails: (id: string) => Promise<RouteWithDetails | null>;
   fetchRouteActivityLogs: (routeId: string) => Promise<RouteActivityLog[]>;

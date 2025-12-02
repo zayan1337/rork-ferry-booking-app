@@ -103,10 +103,7 @@ export interface Permission extends BaseEntity, ActivatableEntity {
 }
 
 export interface PermissionCategory
-  extends BaseEntity,
-    NamedEntity,
-    OrderableEntity,
-    ActivatableEntity {
+  extends BaseEntity, NamedEntity, OrderableEntity, ActivatableEntity {
   description?: string;
   total_permissions?: number;
   active_permissions?: number;
@@ -114,9 +111,7 @@ export interface PermissionCategory
 }
 
 export interface RoleTemplate
-  extends BaseEntity,
-    NamedEntity,
-    ActivatableEntity {
+  extends BaseEntity, NamedEntity, ActivatableEntity {
   description?: string;
   is_system_role: boolean;
   permission_count?: number;
@@ -194,7 +189,8 @@ export interface PermissionWithDetails extends Permission {
 // ============================================================================
 
 export interface PermissionStoreState
-  extends BaseStoreState<Permission>,
+  extends
+    BaseStoreState<Permission>,
     FilterableStoreState<Permission, PermissionFilters>,
     StatsStoreState<PermissionStats> {
   // Related data
@@ -216,7 +212,8 @@ export interface PermissionStoreState
 }
 
 export interface PermissionStoreActions
-  extends BaseCrudActions<Permission, PermissionFormData>,
+  extends
+    BaseCrudActions<Permission, PermissionFormData>,
     SearchableActions<Permission> {
   // Permission-specific actions
   fetchCategories: () => Promise<void>;
@@ -272,10 +269,7 @@ export interface FAQ extends BaseEntity, OrderableEntity, ActivatableEntity {
 }
 
 export interface FAQCategory
-  extends BaseEntity,
-    NamedEntity,
-    OrderableEntity,
-    ActivatableEntity {
+  extends BaseEntity, NamedEntity, OrderableEntity, ActivatableEntity {
   description?: string;
   faq_count?: number;
   active_faq_count?: number;
@@ -472,10 +466,7 @@ export interface IslandFilters {
 // ============================================================================
 
 export interface Zone
-  extends BaseEntity,
-    ActivatableEntity,
-    NamedEntity,
-    OrderableEntity {
+  extends BaseEntity, ActivatableEntity, NamedEntity, OrderableEntity {
   code: string;
   description: string;
   // Statistics from zones_stats_view
@@ -1039,8 +1030,7 @@ export interface VesselStoreState {
 }
 
 export interface VesselStoreActions
-  extends BaseCrudActions<Vessel, VesselFormData>,
-    SearchableActions<Vessel> {
+  extends BaseCrudActions<Vessel, VesselFormData>, SearchableActions<Vessel> {
   // Vessel-specific actions
   fetchVesselDetails: (id: string) => Promise<VesselWithDetails | null>;
   fetchVesselsByStatus: (status: string) => Promise<Vessel[]>;
@@ -1294,7 +1284,8 @@ export interface TripActivityLog {
 // ============================================================================
 
 export interface TripStoreState
-  extends BaseStoreState<Trip>,
+  extends
+    BaseStoreState<Trip>,
     FilterableStoreState<Trip, TripFilters>,
     StatsStoreState<TripStats> {
   // Related data
@@ -1321,8 +1312,7 @@ export interface TripStoreState
 }
 
 export interface TripStoreActions
-  extends BaseCrudActions<Trip, TripFormData>,
-    SearchableActions<Trip> {
+  extends BaseCrudActions<Trip, TripFormData>, SearchableActions<Trip> {
   // Trip-specific actions
   fetchTripDetails: (id: string) => Promise<TripWithDetails | null>;
   fetchTripsByStatus: (status: string) => Promise<Trip[]>;
@@ -1412,8 +1402,10 @@ export interface TripStoreActions
 // TRIP MANAGEMENT HOOK TYPES
 // ============================================================================
 
-export interface UseTripManagementReturn
-  extends Omit<BaseManagementHook<Trip, TripFormData, TripStats>, 'create'> {
+export interface UseTripManagementReturn extends Omit<
+  BaseManagementHook<Trip, TripFormData, TripStats>,
+  'create'
+> {
   // Trip-specific data
   trips: Trip[];
   currentTrip: Trip | null;
@@ -1596,8 +1588,11 @@ export interface BaseManagementHook<T, F, S> {
   validateData: (data: Partial<F>) => ValidationResult;
 }
 
-export interface OrderableManagementHook<T, F, S>
-  extends BaseManagementHook<T, F, S> {
+export interface OrderableManagementHook<T, F, S> extends BaseManagementHook<
+  T,
+  F,
+  S
+> {
   // Order management
   getAvailableOrderOptions: () => { label: string; value: number }[];
   getSuggestedOrder: (excludeId?: string) => number;

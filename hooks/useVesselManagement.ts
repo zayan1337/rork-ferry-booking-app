@@ -14,8 +14,11 @@ type BaseManagementHook<T, F, S> = AdminManagement.BaseManagementHook<T, F, S>;
 // VESSEL MANAGEMENT HOOK INTERFACE
 // ============================================================================
 
-export interface UseVesselManagementReturn
-  extends BaseManagementHook<Vessel, VesselFormData, VesselStats> {
+export interface UseVesselManagementReturn extends BaseManagementHook<
+  Vessel,
+  VesselFormData,
+  VesselStats
+> {
   // Vessel-specific data
   vessels: Vessel[];
   currentVessel: Vessel | null;

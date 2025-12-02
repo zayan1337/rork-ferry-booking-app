@@ -22,8 +22,7 @@ type ValidationResult = AdminManagement.ValidationResult;
 // ============================================================================
 
 interface PermissionStore
-  extends PermissionStoreState,
-    PermissionStoreActions {}
+  extends PermissionStoreState, PermissionStoreActions {}
 
 export const usePermissionStore = create<PermissionStore>()((set, get) => ({
   // Initial state

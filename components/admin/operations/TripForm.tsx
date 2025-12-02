@@ -203,9 +203,17 @@ export default function TripForm({
     update,
     loading: tripLoading,
   } = useTripManagement();
-  const { routes, loadAll: loadRoutes } = useRouteManagement();
-  const { vessels, loadAll: loadVessels } = useVesselManagement();
-  const { users, fetchAll: fetchUsers } = useUserStore();
+  const {
+    routes,
+    loadAll: loadRoutes,
+    loading: routesLoading,
+  } = useRouteManagement();
+  const {
+    vessels,
+    loadAll: loadVessels,
+    loading: vesselsLoading,
+  } = useVesselManagement();
+  const { users, fetchAll: fetchUsers, loading: usersLoading } = useUserStore();
 
   // Find current trip data for editing
   const currentTrip = tripId ? getById(tripId) : null;
@@ -259,6 +267,9 @@ export default function TripForm({
   >([]);
   const [loadingSegmentData, setLoadingSegmentData] = useState(false);
   const [initialDataLoaded, setInitialDataLoaded] = useState(false);
+  const [isLoadingInitialData, setIsLoadingInitialData] = useState(false);
+  const [storeLoadWaitTime, setStoreLoadWaitTime] = useState(0);
+  const [captains, setCaptains] = useState<any[]>([]);
 
   const normalizeTimeString = (time?: string | null) => {
     if (!time) return null;
@@ -562,20 +573,159 @@ export default function TripForm({
     }
   }, [formData.fare_multiplier]);
 
+  // Track store loading time and force show form after timeout
+  useEffect(() => {
+    if (initialDataLoaded) return;
+
+    if (routesLoading || vesselsLoading || usersLoading) {
+      const timer = setInterval(() => {
+        setStoreLoadWaitTime(prev => {
+          const newTime = prev + 500;
+          // Force show form after 5 seconds
+          if (newTime >= 5000) {
+            setInitialDataLoaded(true);
+          }
+          return newTime;
+        });
+      }, 500);
+
+      return () => clearInterval(timer);
+    } else {
+      setStoreLoadWaitTime(0);
+    }
+  }, [routesLoading, vesselsLoading, usersLoading, initialDataLoaded]);
+
+  // Check if data already exists (might be pre-loaded by stores)
+  useEffect(() => {
+    if (initialDataLoaded) return;
+
+    // If we already have sufficient data for routes and vessels (users can be empty), mark as loaded
+    if (routes && routes.length > 0 && vessels && vessels.length > 0) {
+      setInitialDataLoaded(true);
+      return;
+    }
+
+    // If stores are still loading, wait for them (but useEffect above will timeout)
+    if (routesLoading || vesselsLoading || usersLoading) {
+      return;
+    }
+  }, [
+    routes,
+    vessels,
+    users,
+    routesLoading,
+    vesselsLoading,
+    usersLoading,
+    initialDataLoaded,
+  ]);
+
   // Load routes, vessels, and users on component mount
   useEffect(() => {
+    // Prevent multiple simultaneous loads
+    if (isLoadingInitialData || initialDataLoaded) {
+      return;
+    }
+
+    // Skip if stores are currently loading (unless we've waited too long)
+    if (
+      (routesLoading || vesselsLoading || usersLoading) &&
+      storeLoadWaitTime < 5000
+    ) {
+      return;
+    }
+
+    // Skip if we already have sufficient data (users can be empty)
+    if (routes && routes.length > 0 && vessels && vessels.length > 0) {
+      setInitialDataLoaded(true);
+      return;
+    }
+
     const loadData = async () => {
       try {
-        await Promise.all([loadRoutes(), loadVessels(), fetchUsers()]);
+        setIsLoadingInitialData(true);
+
+        // Check if functions are available
+        if (
+          typeof loadRoutes !== 'function' ||
+          typeof loadVessels !== 'function' ||
+          typeof fetchUsers !== 'function'
+        ) {
+          setInitialDataLoaded(true);
+          return;
+        }
+
+        // Load with timeout to prevent infinite loading
+        const loadWithTimeout = async (
+          promiseFactory: () => Promise<any>,
+          shouldLoad: boolean,
+          timeoutMs = 10000
+        ) => {
+          if (!shouldLoad) return null;
+
+          const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Timeout')), timeoutMs)
+          );
+
+          try {
+            const promise = promiseFactory();
+            return await Promise.race([promise, timeoutPromise]);
+          } catch (error) {
+            return null;
+          }
+        };
+
+        // Load data with individual error handling - only load if not already present
+        await Promise.allSettled([
+          loadWithTimeout(
+            () => loadRoutes(),
+            !routes || routes.length === 0,
+            8000
+          ),
+          loadWithTimeout(
+            () => loadVessels(),
+            !vessels || vessels.length === 0,
+            8000
+          ),
+          loadWithTimeout(
+            () => fetchUsers(),
+            !users || users.length === 0,
+            5000
+          ),
+        ]);
+
         setInitialDataLoaded(true);
       } catch (error) {
-        console.error('Error loading initial data:', error);
-        setInitialDataLoaded(true); // Set to true even on error to prevent infinite loading
+        setInitialDataLoaded(true);
+      } finally {
+        setIsLoadingInitialData(false);
       }
     };
 
+    // Absolute fallback: force show form after 15 seconds
+    const fallbackTimeout = setTimeout(() => {
+      setInitialDataLoaded(true);
+      setIsLoadingInitialData(false);
+    }, 15000);
+
     loadData();
-  }, []);
+
+    return () => {
+      clearTimeout(fallbackTimeout);
+    };
+  }, [
+    isLoadingInitialData,
+    initialDataLoaded,
+    routes,
+    vessels,
+    users,
+    routesLoading,
+    vesselsLoading,
+    usersLoading,
+    storeLoadWaitTime,
+    loadRoutes,
+    loadVessels,
+    fetchUsers,
+  ]);
 
   useEffect(() => {
     if (tripId) {
@@ -599,6 +749,32 @@ export default function TripForm({
       setOriginalVesselId(currentTrip.vessel_id);
     }
   }, [currentTrip?.vessel_id, originalVesselId]);
+
+  // Fetch captains directly as fallback
+  useEffect(() => {
+    const fetchCaptains = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('user_profiles')
+          .select('id, full_name, email')
+          .eq('role', 'captain')
+          .eq('is_active', true);
+
+        if (!error && data) {
+          setCaptains(data);
+        }
+      } catch (error) {
+        console.error('Error fetching captains:', error);
+      }
+    };
+
+    // Fetch captains if users array is empty or has no captains
+    const hasCaptains =
+      users && users.some(u => u.role === 'captain' && u.status === 'active');
+    if (!hasCaptains) {
+      fetchCaptains();
+    }
+  }, [users]);
 
   // Load segment data for fare editing
   const loadSegmentData = async (routeId: string) => {
@@ -1220,9 +1396,9 @@ export default function TripForm({
 
     const vesselChanged = Boolean(
       tripId &&
-        originalVesselId &&
-        formData.vessel_id &&
-        formData.vessel_id !== originalVesselId
+      originalVesselId &&
+      formData.vessel_id &&
+      formData.vessel_id !== originalVesselId
     );
 
     if (vesselChanged && formData.vessel_id) {
@@ -1599,15 +1775,21 @@ export default function TripForm({
     { label: 'Delayed', value: 'delayed' },
   ];
 
-  const captainOptions = [
-    { label: 'No Captain Assigned', value: '' },
-    ...(users || [])
-      .filter(user => user.role === 'captain' && user.status === 'active')
-      .map(captain => ({
-        label: captain.name || captain.email,
+  const captainOptions = useMemo(() => {
+    // Use users from store if available, otherwise use direct fetch fallback
+    const availableCaptains =
+      users && users.some(u => u.role === 'captain' && u.status === 'active')
+        ? users.filter(u => u.role === 'captain' && u.status === 'active')
+        : captains;
+
+    return [
+      { label: 'No Captain Assigned', value: '' },
+      ...availableCaptains.map(captain => ({
+        label: captain.name || captain.full_name || captain.email,
         value: captain.id,
       })),
-  ];
+    ];
+  }, [users, captains]);
 
   const selectedVessel = useMemo(() => {
     if (!formData.vessel_id) return null;
@@ -1619,14 +1801,24 @@ export default function TripForm({
     ? Math.max(selectedVessel.seating_capacity - passengerCount, 0)
     : null;
 
-  if (loading || tripLoading.data || !initialDataLoaded) {
+  // Only show loading if:
+  // 1. Component is actively submitting (loading = true)
+  // 2. We're editing an existing trip AND it's still loading (tripId && tripLoading.data)
+  // 3. Initial data hasn't loaded yet (!initialDataLoaded)
+  const shouldShowLoading =
+    loading || (tripId && tripLoading.data) || !initialDataLoaded;
+
+  if (shouldShowLoading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size='large' color={colors.primary} />
         <Text style={styles.loadingText}>
-          {loading || tripLoading.data
+          {loading || (tripId && tripLoading.data)
             ? 'Loading trip data...'
             : 'Loading routes and vessels...'}
+        </Text>
+        <Text style={styles.loadingHint}>
+          If this takes too long, please check your internet connection
         </Text>
       </View>
     );
@@ -1639,6 +1831,31 @@ export default function TripForm({
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
       >
+        {/* Data Loading Warning */}
+        {initialDataLoaded &&
+          (!routes ||
+            routes.length === 0 ||
+            !vessels ||
+            vessels.length === 0) && (
+            <View style={styles.dataWarningContainer}>
+              <View style={styles.dataWarningIcon}>
+                <AlertCircle size={20} color={colors.warning} />
+              </View>
+              <View style={styles.dataWarningContent}>
+                <Text style={styles.dataWarningTitle}>Data Loading Issue</Text>
+                <Text style={styles.dataWarningText}>
+                  {!routes || routes.length === 0
+                    ? 'No routes available. '
+                    : ''}
+                  {!vessels || vessels.length === 0
+                    ? 'No vessels available. '
+                    : ''}
+                  Please check your connection and refresh the page.
+                </Text>
+              </View>
+            </View>
+          )}
+
         {/* Header (scrolls with content like other forms) */}
         <View style={styles.header}>
           <View style={styles.headerIcon}>
@@ -2229,6 +2446,13 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontWeight: '500',
   },
+  loadingHint: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontWeight: '400',
+    marginTop: 8,
+    textAlign: 'center',
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -2765,5 +2989,39 @@ const styles = StyleSheet.create({
     color: colors.error,
     marginTop: 4,
     marginLeft: 4,
+  },
+  // Data warning styles
+  dataWarningContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: colors.warningLight,
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: colors.warning,
+  },
+  dataWarningIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: `${colors.warning}20`,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  dataWarningContent: {
+    flex: 1,
+  },
+  dataWarningTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.warning,
+    marginBottom: 4,
+  },
+  dataWarningText: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    lineHeight: 18,
   },
 });

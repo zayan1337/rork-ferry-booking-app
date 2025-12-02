@@ -15,8 +15,11 @@ type BaseManagementHook<T, F, S> = AdminManagement.BaseManagementHook<T, F, S>;
 // ISLAND MANAGEMENT HOOK INTERFACE
 // ============================================================================
 
-export interface UseIslandManagementReturn
-  extends BaseManagementHook<Island, IslandFormData, IslandStats> {
+export interface UseIslandManagementReturn extends BaseManagementHook<
+  Island,
+  IslandFormData,
+  IslandStats
+> {
   // Island-specific data
   islands: Island[];
   currentIsland: Island | null;

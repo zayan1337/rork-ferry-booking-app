@@ -14,8 +14,7 @@ interface BookingOperationsStoreActions {
 }
 
 interface BookingOperationsStore
-  extends BookingOperationsStoreState,
-    BookingOperationsStoreActions {}
+  extends BookingOperationsStoreState, BookingOperationsStoreActions {}
 
 export const useBookingOperationsStore = create<BookingOperationsStore>(
   (set, get) => ({

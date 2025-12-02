@@ -23,7 +23,8 @@ type SearchableActions<T> = AdminManagement.SearchableActions<T>;
 // ============================================================================
 
 interface ZoneStoreState
-  extends BaseStoreState<Zone>,
+  extends
+    BaseStoreState<Zone>,
     FilterableStoreState<Zone, ZoneFilters>,
     StatsStoreState<ZoneStats>,
     OrderableStoreState<Zone> {
@@ -32,7 +33,8 @@ interface ZoneStoreState
 }
 
 interface ZoneStoreActions
-  extends BaseCrudActions<Zone, ZoneFormData>,
+  extends
+    BaseCrudActions<Zone, ZoneFormData>,
     OrderableActions,
     SearchableActions<Zone> {
   // Zone-specific actions

@@ -103,7 +103,11 @@ const CreditTransactionCard = React.memo<CreditTransactionCardProps>(
     };
 
     const getTransactionTypeLabel = () => {
-      if (isCredit) {
+      if (isFailed) {
+        return 'Payment Failed';
+      } else if (isPending) {
+        return 'Payment Pending';
+      } else if (isCredit) {
         return 'Credit Added';
       } else {
         return transaction.bookingId ? 'Booking Payment' : 'Credit Deduction';

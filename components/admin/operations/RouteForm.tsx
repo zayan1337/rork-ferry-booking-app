@@ -124,9 +124,8 @@ export default function RouteForm({
     setLoading(true);
     try {
       // Import the utility functions
-      const { getRouteStops, getRouteSegmentFares } = await import(
-        '@/utils/multiStopRouteUtils'
-      );
+      const { getRouteStops, getRouteSegmentFares } =
+        await import('@/utils/multiStopRouteUtils');
 
       // Load route stops from database
       const stops = await getRouteStops(routeId);

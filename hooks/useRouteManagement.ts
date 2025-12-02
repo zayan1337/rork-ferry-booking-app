@@ -15,8 +15,11 @@ type BaseManagementHook<T, F, S> = AdminManagement.BaseManagementHook<T, F, S>;
 // ROUTE MANAGEMENT HOOK INTERFACE
 // ============================================================================
 
-export interface UseRouteManagementReturn
-  extends BaseManagementHook<Route, RouteFormData, RouteStats> {
+export interface UseRouteManagementReturn extends BaseManagementHook<
+  Route,
+  RouteFormData,
+  RouteStats
+> {
   // Route-specific data
   routes: Route[];
   currentRoute: Route | null;
