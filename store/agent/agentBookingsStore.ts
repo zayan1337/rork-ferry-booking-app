@@ -125,16 +125,8 @@ export const useAgentBookingsStore = create<AgentBookingsState>((set, get) => ({
     try {
       validateRequired(agentId, 'Agent ID');
 
-      // Get agent profile to access discount rate for reverse calculation
-      const { data: agentProfile } = await supabase
-        .from('user_profiles')
-        .select('agent_discount')
-        .eq('id', agentId)
-        .single();
-
-      const agentDiscountRate = Number(agentProfile?.agent_discount || 0);
-
       // Get ALL bookings for this agent with comprehensive trip, route, vessel, and passenger details
+      // Note: We now use saved commission_amount and discount_rate from booking creation time
       const { data: allAgentBookings, error: allBookingsError } = await supabase
         .from('bookings')
         .select(
@@ -144,6 +136,8 @@ export const useAgentBookingsStore = create<AgentBookingsState>((set, get) => ({
                     user_id,
                     agent_client_id,
                     total_fare,
+                    commission_amount,
+                    discount_rate,
                     status,
                     created_at,
                     updated_at,
@@ -471,78 +465,26 @@ export const useAgentBookingsStore = create<AgentBookingsState>((set, get) => ({
           };
         }
 
-        // Calculate commission based on fare difference using trip's multiplied fare
+        // ✅ Use saved commission and discount rate from booking creation time
+        // This ensures historical accuracy even if agent's discount rate changes later
         const discountedFare = Number(booking.total_fare || 0);
+        const commission = Number(booking.commission_amount || 0);
+        const bookingDiscountRate = Number(booking.discount_rate || 0);
+        const paymentMethodType = booking.payment_method_type;
 
-        // Calculate original fare (before discount)
-        // Strategy: Try multiple methods and use the most reliable one
-        let originalFare = discountedFare; // Default fallback
-
-        // Method 1: Reverse-calculate from discount rate if available
-        if (
-          agentDiscountRate > 0 &&
-          agentDiscountRate < 100 &&
-          discountedFare > 0
-        ) {
-          // Reverse calculation: discountedFare = originalFare * (1 - discountRate/100)
-          // Therefore: originalFare = discountedFare / (1 - discountRate/100)
-          const reverseCalculated =
-            discountedFare / (1 - agentDiscountRate / 100);
-          // Only use if it's reasonable (not too far off)
-          if (
-            reverseCalculated >= discountedFare &&
-            reverseCalculated <= discountedFare * 2
-          ) {
-            originalFare = reverseCalculated;
-          }
+        // Calculate original fare based on payment method
+        // For FREE tickets: originalFare = discountedFare / (1 - discountRate/100)
+        //   - Example: MVR 900 / (1 - 0.10) = MVR 1000
+        // For regular bookings: originalFare = discountedFare + commission
+        //   - Example: MVR 900 + MVR 100 = MVR 1000
+        let originalFare: number;
+        if (paymentMethodType === 'free' && bookingDiscountRate > 0) {
+          // Reverse-calculate original fare from discount rate
+          originalFare = discountedFare / (1 - bookingDiscountRate / 100);
+        } else {
+          // Regular calculation: original = discounted + commission
+          originalFare = discountedFare + commission;
         }
-
-        // Method 2: Use booking_segments fare_amount if available and it's higher than discounted
-        if (booking.booking_segments && booking.booking_segments.length > 0) {
-          const segmentFare = Number(
-            booking.booking_segments[0].fare_amount || 0
-          );
-          // Use segment fare if it's higher than discounted (meaningful discount)
-          // or if reverse calculation wasn't available
-          if (segmentFare >= discountedFare && segmentFare > originalFare) {
-            originalFare = segmentFare;
-          } else if (originalFare === discountedFare && segmentFare > 0) {
-            // If we still have default, try segment fare (might be per passenger)
-            // Check if multiplying by passengers makes sense
-            if (passengers.length > 0) {
-              const segmentFarePerPassenger = segmentFare;
-              const totalSegmentFare =
-                segmentFarePerPassenger * passengers.length;
-              if (totalSegmentFare >= discountedFare) {
-                originalFare = totalSegmentFare;
-              }
-            }
-          }
-        }
-
-        // Method 3: Calculate from trip data (route base_fare × multiplier × passengers)
-        if (booking.trip && passengers.length > 0) {
-          const calculatedFare = passengers.length * multipliedFare;
-          // Use calculated fare if it's higher than current originalFare and makes sense
-          if (
-            calculatedFare >= discountedFare &&
-            calculatedFare > originalFare
-          ) {
-            originalFare = calculatedFare;
-          } else if (originalFare === discountedFare && calculatedFare > 0) {
-            // If we still have default, use calculated fare
-            originalFare = calculatedFare;
-          }
-        }
-
-        // Final validation: Ensure originalFare is at least equal to discountedFare
-        // If still less, use discountedFare as original (no discount was applied)
-        if (originalFare < discountedFare) {
-          originalFare = discountedFare;
-        }
-
-        const commission =
-          originalFare > discountedFare ? originalFare - discountedFare : 0;
 
         // Check if this booking is from a modification
         const modificationRecord = Array.isArray(booking.modifications)

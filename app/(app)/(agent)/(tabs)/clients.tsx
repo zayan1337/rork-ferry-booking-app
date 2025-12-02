@@ -98,8 +98,8 @@ export default function AgentClientsScreen() {
       });
 
       return clientBookings.reduce((total, booking) => {
-        // Use totalAmount or discountedAmount, fallback to 0
-        const amount = booking.totalAmount || booking.discountedAmount || 0;
+        // ✅ Use discountedAmount (what client paid) not totalAmount (original fare)
+        const amount = booking.discountedAmount || booking.totalAmount || 0;
         return total + amount;
       }, 0);
     },

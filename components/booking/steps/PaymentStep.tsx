@@ -36,6 +36,7 @@ interface PaymentStepProps {
   // Payment method
   paymentMethod: string | null;
   onPaymentMethodChange: (method: string) => void;
+  paymentOptions?: { label: string; value: string }[]; // ✅ Optional filtered payment options
 
   // Terms acceptance
   termsAccepted: boolean;
@@ -70,6 +71,7 @@ const PaymentStep: React.FC<PaymentStepProps> = ({
   agent,
   paymentMethod,
   onPaymentMethodChange,
+  paymentOptions, // ✅ Use filtered options if provided
   termsAccepted,
   onTermsToggle,
   errors,
@@ -242,7 +244,7 @@ const PaymentStep: React.FC<PaymentStepProps> = ({
       {/* Payment Method Selection */}
       <Dropdown
         label='Payment Method'
-        items={[...AGENT_PAYMENT_OPTIONS]}
+        items={paymentOptions || [...AGENT_PAYMENT_OPTIONS]}
         value={paymentMethod || ''}
         onChange={handlePaymentMethodChange}
         placeholder='Select payment method'

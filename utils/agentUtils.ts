@@ -189,7 +189,8 @@ export const calculateLocalAgentStats = async (
   const bookingsForRevenue: BookingForRevenue[] = bookings.map(booking => ({
     id: booking.id,
     status: booking.status,
-    total_fare: booking.totalAmount || booking.discountedAmount || 0,
+    // ✅ Use discountedAmount (what client paid) not totalAmount (original fare)
+    total_fare: booking.discountedAmount || booking.totalAmount || 0,
   }));
 
   // Calculate net revenue accounting for partial refunds

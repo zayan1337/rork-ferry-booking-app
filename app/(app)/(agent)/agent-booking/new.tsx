@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, BackHandler } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -784,8 +784,30 @@ export default function AgentNewBookingScreen() {
     return `MVR ${amount.toFixed(2)}`;
   };
 
-  // Payment method options - using the centralized options from utils
-  const paymentOptions = [...AGENT_PAYMENT_OPTIONS];
+  // Payment method options - filter based on agent's available resources
+  // ✅ Only show payment options that the agent can actually use
+  const paymentOptions = useMemo(() => {
+    const allOptions = [...AGENT_PAYMENT_OPTIONS];
+
+    return allOptions.filter(option => {
+      // MIB is always available
+      if (option.value === 'mib') {
+        return true;
+      }
+
+      // Credit: Only show if agent has credit balance > 0
+      if (option.value === 'credit') {
+        return (storeAgent?.creditBalance || 0) > 0;
+      }
+
+      // Free: Only show if agent has free tickets remaining > 0
+      if (option.value === 'free') {
+        return (storeAgent?.freeTicketsRemaining || 0) > 0;
+      }
+
+      return true;
+    });
+  }, [storeAgent?.creditBalance, storeAgent?.freeTicketsRemaining]);
 
   // Render current step
   const renderCurrentStep = () => {
@@ -902,6 +924,7 @@ export default function AgentNewBookingScreen() {
             onPaymentMethodChange={method =>
               setPaymentMethod(method as 'credit' | 'mib' | 'free')
             }
+            paymentOptions={paymentOptions}
             termsAccepted={termsAccepted}
             onTermsToggle={() => setTermsAccepted(!termsAccepted)}
             errors={errors}

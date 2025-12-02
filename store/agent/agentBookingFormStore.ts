@@ -1484,7 +1484,19 @@ export const useAgentBookingFormStore = create<
       const bookingUserId = validAgent.id; // Always use agent ID for agent bookings
 
       // Calculate commission amount (fares already calculated above for validation)
-      const commissionAmount = originalFare - discountedFare;
+      // ✅ CRITICAL BUSINESS LOGIC:
+      // - Regular bookings (MIB/Credit): commission = originalFare - discountedFare (the discount amount)
+      // - FREE TICKET bookings: commission = discountedFare (agent keeps 100% since ticket is free from business)
+      const commissionAmount =
+        currentBooking.paymentMethod === 'free'
+          ? discountedFare // Agent keeps entire amount charged to client
+          : originalFare - discountedFare; // Agent keeps the discount amount
+
+      // Total fare is always the discounted fare (what agent charges client)
+      const totalFareForBooking = discountedFare;
+
+      // Discount rate applies to all bookings (determines client price)
+      const effectiveDiscountRate = validAgent.discountRate || 0;
 
       // Create the booking WITHOUT QR code data first
       // Set status based on payment method - MIB payments start as pending_payment
@@ -1493,7 +1505,7 @@ export const useAgentBookingFormStore = create<
         agent_id: validAgent.id,
         agent_client_id: agentClientId,
         trip_id: currentBooking.trip!.id,
-        total_fare: discountedFare, // Store discounted fare in database
+        total_fare: totalFareForBooking, // 0 for free tickets, discounted fare otherwise
         payment_method_type: currentBooking.paymentMethod,
         status:
           currentBooking.paymentMethod === 'mib'
@@ -1501,6 +1513,12 @@ export const useAgentBookingFormStore = create<
             : ('confirmed' as const),
         is_round_trip: currentBooking.tripType === 'round_trip',
         return_booking_id: null, // We'll handle return trips separately if needed
+        // ✅ CRITICAL: Save commission and discount rate at booking time
+        // This preserves historical accuracy even if agent discount changes later
+        // For FREE tickets: commission = discountedFare (agent keeps 100% since ticket is free from business)
+        // For other bookings: commission = originalFare - discountedFare (the discount amount)
+        commission_amount: commissionAmount,
+        discount_rate: effectiveDiscountRate,
       };
 
       const { data: booking, error: bookingError } = await supabase
@@ -1810,15 +1828,27 @@ export const useAgentBookingFormStore = create<
           currentBooking.returnSelectedSeats.length * returnTripFare;
         const returnDiscountedFare =
           returnOriginalFare * (1 - (validAgent.discountRate || 0) / 100);
+
+        // ✅ CRITICAL BUSINESS LOGIC (same as departure):
+        // - Regular bookings: commission = originalFare - discountedFare
+        // - FREE TICKET bookings: commission = discountedFare (agent keeps 100%)
         const returnCommissionAmount =
-          returnOriginalFare - returnDiscountedFare;
+          currentBooking.paymentMethod === 'free'
+            ? returnDiscountedFare // Agent keeps entire amount charged to client
+            : returnOriginalFare - returnDiscountedFare; // Agent keeps the discount amount
+
+        // Total fare is always the discounted fare (what agent charges client)
+        const returnTotalFare = returnDiscountedFare;
+
+        // Discount rate applies to all bookings (determines client price)
+        const returnEffectiveDiscountRate = validAgent.discountRate || 0;
 
         const returnBookingData = {
           user_id: bookingUserId,
           agent_id: validAgent.id,
           agent_client_id: agentClientId,
           trip_id: currentBooking.returnTrip.id,
-          total_fare: returnDiscountedFare,
+          total_fare: returnTotalFare, // 0 for free tickets, discounted fare otherwise
           payment_method_type: currentBooking.paymentMethod,
           status:
             currentBooking.paymentMethod === 'mib'
@@ -1826,6 +1856,12 @@ export const useAgentBookingFormStore = create<
               : ('confirmed' as const),
           is_round_trip: true,
           return_booking_id: null,
+          // ✅ CRITICAL: Save commission and discount rate at booking time
+          // This preserves historical accuracy even if agent discount changes later
+          // For FREE tickets: commission = returnDiscountedFare (agent keeps 100%)
+          // For other bookings: commission = originalFare - discountedFare (the discount amount)
+          commission_amount: returnCommissionAmount,
+          discount_rate: returnEffectiveDiscountRate,
         };
 
         const { data: returnBooking, error: returnBookingError } =

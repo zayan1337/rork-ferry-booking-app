@@ -128,10 +128,23 @@ export default function BookingDetailsScreen() {
       }
     : null;
 
-  const { isModifiable, isCancellable, message } = useBookingEligibility({
+  const eligibilityResult = useBookingEligibility({
     booking: convertedBooking as any,
     isFromModification: (booking as any)?.isFromModification || false,
   });
+
+  // ✅ CRITICAL: Free ticket bookings cannot be modified or cancelled
+  // Reason: Free tickets are consumed and cannot be refunded or reused
+  const isFreeTicketBooking = booking?.paymentMethod === 'free';
+  const isModifiable = isFreeTicketBooking
+    ? false
+    : eligibilityResult.isModifiable;
+  const isCancellable = isFreeTicketBooking
+    ? false
+    : eligibilityResult.isCancellable;
+  const message = isFreeTicketBooking
+    ? 'Free ticket bookings cannot be modified or cancelled as the ticket has been consumed.'
+    : eligibilityResult.message;
 
   // Load cancellation / refund info when booking is cancelled
   useEffect(() => {

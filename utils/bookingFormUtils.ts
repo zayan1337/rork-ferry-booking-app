@@ -24,9 +24,9 @@ export const TRIP_TYPE_OPTIONS = [
  * Payment method options for agent bookings
  */
 export const AGENT_PAYMENT_OPTIONS = [
-  { label: '💳 Agent Credit', value: 'credit' },
-  { label: '🌐 MIB', value: 'mib' },
-  { label: '🎫 Free Ticket', value: 'free' },
+  { label: 'Agent Credit', value: 'credit' },
+  { label: 'MIB', value: 'mib' },
+  { label: 'Free Ticket', value: 'free' },
 ] as const;
 
 /**
