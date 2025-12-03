@@ -167,7 +167,6 @@ export default function FreeTicketsModal({
       visible={visible}
       animationType='slide'
       transparent={true}
-      {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
       onRequestClose={handleClose}
     >
       <KeyboardAvoidingView

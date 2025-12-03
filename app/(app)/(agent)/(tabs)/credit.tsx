@@ -405,7 +405,6 @@ const CreditPaymentModal = React.memo(
         visible={visible}
         transparent
         animationType='slide'
-        {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
         onRequestClose={handleClose}
       >
         <KeyboardAvoidingView

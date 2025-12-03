@@ -1525,7 +1525,6 @@ export default function BookingDetailsPage() {
         visible={showCancelModal}
         transparent={true}
         animationType='slide'
-        {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
         onRequestClose={() => {
           if (!isCancelling) {
             closeCancelModal();
@@ -1784,7 +1783,6 @@ export default function BookingDetailsPage() {
         visible={showReceiptModal}
         transparent={true}
         animationType='slide'
-        {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
         onRequestClose={closeReceiptModal}
       >
         <View style={styles.modalOverlay}>

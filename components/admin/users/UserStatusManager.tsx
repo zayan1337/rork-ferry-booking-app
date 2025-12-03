@@ -5,7 +5,6 @@ import {
   StyleSheet,
   Modal,
   Pressable,
-  Platform,
   Keyboard,
 } from 'react-native';
 import { Shield, X, CheckCircle, AlertCircle, Ban } from 'lucide-react-native';
@@ -111,7 +110,6 @@ export default function UserStatusManager({
       visible={visible}
       animationType='slide'
       transparent={true}
-      {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
       onRequestClose={handleClose}
     >
       <View style={styles.overlay}>

@@ -6,7 +6,6 @@ import {
   StyleSheet,
   Modal,
   ScrollView,
-  Platform,
   Keyboard,
 } from 'react-native';
 import { X, Check } from 'lucide-react-native';
@@ -81,7 +80,6 @@ const FilterModal: React.FC<FilterModalProps> = ({
       visible={visible}
       transparent
       animationType='slide'
-      {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
       onRequestClose={handleClose}
     >
       <View style={styles.modalOverlay}>

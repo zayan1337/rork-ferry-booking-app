@@ -6,7 +6,6 @@ import {
   Modal,
   StyleSheet,
   ScrollView,
-  Platform,
   Keyboard,
 } from 'react-native';
 import { colors } from '@/constants/adminColors';
@@ -91,7 +90,6 @@ export default function Dropdown({
         visible={isModalVisible}
         transparent={true}
         animationType='fade'
-        {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
         onRequestClose={handleClose}
       >
         <Pressable style={styles.modalOverlay} onPress={handleClose}>

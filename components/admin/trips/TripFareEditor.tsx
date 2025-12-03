@@ -215,7 +215,6 @@ export default function TripFareEditor({
       visible={visible}
       animationType='slide'
       transparent={true}
-      {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
       onRequestClose={() => {
         Keyboard.dismiss();
         onCancel();

@@ -6,9 +6,9 @@ import {
   StyleSheet,
   Pressable,
   Keyboard,
-  Clipboard,
   Dimensions,
 } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import Colors from '@/constants/colors';
 import { useAlertContext } from '@/components/AlertProvider';
 
@@ -125,7 +125,16 @@ export default function OTPInput({
 
   const handlePaste = async () => {
     try {
-      const clipboardContent = await Clipboard.getString();
+      const clipboardContent = await Clipboard.getStringAsync();
+
+      if (!clipboardContent) {
+        showInfo(
+          'Clipboard Empty',
+          'No content found in clipboard. Please copy the code first.'
+        );
+        return;
+      }
+
       const numericContent = clipboardContent.replace(/[^0-9]/g, '');
 
       if (numericContent.length > 0) {

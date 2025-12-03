@@ -7,6 +7,7 @@ import {
   Pressable,
   ActivityIndicator,
   Platform,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView, WebViewNavigation } from 'react-native-webview';
@@ -20,6 +21,11 @@ import {
 import { useAlertContext } from '@/components/AlertProvider';
 import { getMinutesUntilDeparture } from '@/utils/bookingUtils';
 import { BUFFER_MINUTES_PAYMENT_WINDOW } from '@/constants/customer';
+
+// Custom URL scheme for payment callbacks
+const PAYMENT_RETURN_SCHEME =
+  process.env.EXPO_PUBLIC_MIB_RETURN_URL ||
+  'crystaltransfervaavu://payment-success';
 
 interface MibPaymentWebViewProps {
   visible: boolean;
@@ -248,7 +254,32 @@ export default function MibPaymentWebView({
     };
   }, [showPaymentPage, currentSessionData, tripInfo, onCancel]);
 
-  // Handle payment completion detection
+  // Handle payment completion detection via Linking (for iOS deep link handling)
+  useEffect(() => {
+    if (!showPaymentPage) return;
+
+    // iOS-specific: Listen for deep links that might escape the WebView
+    const handleLinkingUrl = ({ url }: { url: string }) => {
+      if (url.startsWith(PAYMENT_RETURN_SCHEME.split('?')[0])) {
+        handleDeepLinkUrl(url, 'linking_listener');
+      }
+    };
+
+    const subscription = Linking.addEventListener('url', handleLinkingUrl);
+
+    // Also check if there's a pending URL (edge case)
+    Linking.getInitialURL().then(url => {
+      if (url && url.startsWith(PAYMENT_RETURN_SCHEME.split('?')[0])) {
+        handleDeepLinkUrl(url, 'initial_url');
+      }
+    });
+
+    return () => {
+      subscription?.remove();
+    };
+  }, [showPaymentPage, handleDeepLinkUrl]);
+
+  // Handle payment completion detection via console.warn interception
   useEffect(() => {
     if (showPaymentPage) {
       const originalWarn = console.warn;
@@ -257,9 +288,8 @@ export default function MibPaymentWebView({
         const message = args.join(' ');
 
         if (
-          message.includes(
-            `Can't open url: ${process.env.EXPO_PUBLIC_MIB_RETURN_URL}`
-          )
+          message.includes(`Can't open url: ${PAYMENT_RETURN_SCHEME}`) ||
+          message.includes('crystaltransfervaavu://payment-success')
         ) {
           try {
             // Extract the URL from the warning message
@@ -268,8 +298,7 @@ export default function MibPaymentWebView({
             );
 
             if (urlMatch) {
-              const fullUrl =
-                `${process.env.EXPO_PUBLIC_MIB_RETURN_URL}?` + urlMatch[1];
+              const fullUrl = `${PAYMENT_RETURN_SCHEME}?` + urlMatch[1];
 
               if (
                 handleDeepLinkUrl(fullUrl, 'console_warn_deep_link') === false
@@ -281,7 +310,7 @@ export default function MibPaymentWebView({
             // If we can't parse but we know it's a success, assume success
             if (message.includes('result=SUCCESS')) {
               handleDeepLinkUrl(
-                `${process.env.EXPO_PUBLIC_MIB_RETURN_URL}?result=SUCCESS&bookingId=${bookingId}`,
+                `${PAYMENT_RETURN_SCHEME}?result=SUCCESS&bookingId=${bookingId}`,
                 'console_warn_fallback'
               );
             }
@@ -303,6 +332,7 @@ export default function MibPaymentWebView({
     onCancel,
     onFailure,
     bookingId,
+    handleDeepLinkUrl,
   ]);
 
   const createPaymentSummaryHTML = () => {
@@ -833,36 +863,38 @@ export default function MibPaymentWebView({
   const handleError = (syntheticEvent: any) => {
     const { nativeEvent } = syntheticEvent;
 
-    // Check if the error is related to our payment success URL
+    // Check if the error is related to our payment success URL (custom scheme)
+    const errorDesc = nativeEvent.description || nativeEvent.message || '';
+
     if (
-      nativeEvent.description &&
-      nativeEvent.description.includes(process.env.EXPO_PUBLIC_MIB_RETURN_URL)
+      errorDesc.includes('crystaltransfervaavu://') ||
+      errorDesc.includes(PAYMENT_RETURN_SCHEME)
     ) {
       try {
         // Extract the URL from the error description
-        const urlMatch = nativeEvent.description.match(
+        const urlMatch = errorDesc.match(
           /crystaltransfervaavu:\/\/payment-success\?([^\s"']+)/
         );
         if (urlMatch) {
           const fullUrl =
-            `${process.env.EXPO_PUBLIC_MIB_RETURN_URL}?` + urlMatch[1];
-          if (
-            handleDeepLinkUrl(fullUrl, 'error_handler_success') === true ||
-            handleDeepLinkUrl(fullUrl, 'error_handler_success_retry') === true
-          ) {
+            `crystaltransfervaavu://payment-success?` + urlMatch[1];
+          if (handleDeepLinkUrl(fullUrl, 'error_handler_success')) {
             return; // handled, skip onFailure
           }
         }
       } catch (error) {
         // If we can't parse but we know it's a success, assume success
-        if (nativeEvent.description.includes('result=SUCCESS')) {
+        if (errorDesc.includes('result=SUCCESS')) {
           handleDeepLinkUrl(
-            `${process.env.EXPO_PUBLIC_MIB_RETURN_URL}?result=SUCCESS&bookingId=${bookingId}`,
+            `crystaltransfervaavu://payment-success?result=SUCCESS&bookingId=${bookingId}`,
             'error_handler_fallback'
           );
           return; // Don't call onFailure
         }
       }
+      // If it's a custom scheme error but we couldn't extract params, don't fail
+      // This might be an iOS-specific behavior where the scheme redirect is treated as an error
+      return;
     }
 
     // Only call onFailure if it's not a payment success URL error
@@ -1014,23 +1046,29 @@ export default function MibPaymentWebView({
           domStorageEnabled={true}
           startInLoadingState={true}
           allowsBackForwardNavigationGestures={true}
+          // Critical for iOS: Include custom scheme in origin whitelist
+          originWhitelist={[
+            'https://*',
+            'http://*',
+            'crystaltransfervaavu://*',
+            'about:*',
+            'data:*',
+          ]}
           onShouldStartLoadWithRequest={request => {
-            const customScheme =
-              process.env.EXPO_PUBLIC_MIB_RETURN_URL ||
-              'crystaltransfervaavu://payment-success';
-
-            if (request.url.startsWith(customScheme)) {
-              const handled = handleDeepLinkUrl(
-                request.url,
-                'should_start_load'
-              );
-              return handled ? false : true;
+            // Check for custom scheme URL (payment callback)
+            if (request.url.startsWith('crystaltransfervaavu://')) {
+              // Handle the deep link and prevent WebView from loading it
+              handleDeepLinkUrl(request.url, 'should_start_load');
+              // Return false to prevent WebView from trying to load the custom scheme
+              return false;
             }
 
+            // Allow MIB gateway URLs
             if (request.url.includes('gateway.mastercard.com')) {
               return true;
             }
 
+            // Allow standard HTTP/HTTPS URLs
             if (
               request.url.startsWith('http://') ||
               request.url.startsWith('https://')
@@ -1038,6 +1076,7 @@ export default function MibPaymentWebView({
               return true;
             }
 
+            // Allow about: and data: URLs (for initial HTML content)
             if (
               request.url.startsWith('about:') ||
               request.url.startsWith('data:')
@@ -1045,9 +1084,26 @@ export default function MibPaymentWebView({
               return true;
             }
 
+            // Block any other unknown schemes on iOS to prevent issues
+            if (Platform.OS === 'ios') {
+              return false;
+            }
+
             return true;
           }}
-          userAgent='Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1'
+          // iOS-specific: Handle navigation errors for custom schemes
+          onHttpError={syntheticEvent => {
+            const { nativeEvent } = syntheticEvent;
+            // Some iOS versions report custom scheme navigation as HTTP error
+            if (nativeEvent.url?.startsWith('crystaltransfervaavu://')) {
+              handleDeepLinkUrl(nativeEvent.url, 'http_error_handler');
+            }
+          }}
+          userAgent={
+            Platform.OS === 'ios'
+              ? 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1'
+              : 'Mozilla/5.0 (Linux; Android 12; Pixel 6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Mobile Safari/537.36'
+          }
         />
       </SafeAreaView>
     </Modal>

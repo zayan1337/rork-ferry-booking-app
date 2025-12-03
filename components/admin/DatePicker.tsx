@@ -7,7 +7,6 @@ import {
   StyleSheet,
   ScrollView,
   TextInput,
-  Platform,
   Keyboard,
 } from 'react-native';
 import { colors } from '@/constants/adminColors';
@@ -271,7 +270,6 @@ export default function DatePicker({
         visible={isVisible}
         transparent
         animationType='fade'
-        {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
         onRequestClose={handleCancel}
       >
         <View style={styles.modalOverlay}>

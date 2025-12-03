@@ -9,7 +9,6 @@ import {
   Dimensions,
   Modal,
   ActivityIndicator,
-  Platform,
   Keyboard,
 } from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
@@ -1042,7 +1041,6 @@ export default function UserPermissionsScreen() {
         visible={showRoleTemplates}
         transparent
         animationType='slide'
-        {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
         onRequestClose={() => {
           Keyboard.dismiss();
           setShowRoleTemplates(false);
@@ -1106,7 +1104,6 @@ export default function UserPermissionsScreen() {
         visible={showBulkActions}
         transparent
         animationType='slide'
-        {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
         onRequestClose={() => {
           Keyboard.dismiss();
           setShowBulkActions(false);

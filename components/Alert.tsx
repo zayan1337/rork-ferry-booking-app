@@ -181,7 +181,8 @@ const Alert: React.FC<AlertProps> = ({ visible, options, onClose }) => {
       visible={visible}
       transparent
       animationType='fade'
-      {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
+      // Note: Don't use presentationStyle with transparent modals on iOS
+      // as it causes display issues
       onRequestClose={dismissible ? handleClose : undefined}
     >
       <Pressable style={styles.overlay} onPress={handleBackdropPress}>

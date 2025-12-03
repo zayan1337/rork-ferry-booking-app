@@ -9,7 +9,6 @@ import {
   TextInput,
   Modal,
   ActivityIndicator,
-  Platform,
   Keyboard,
 } from 'react-native';
 import { router } from 'expo-router';
@@ -663,7 +662,6 @@ function WalletDetailCard({
           visible={isEditingCreditLimit}
           transparent
           animationType='fade'
-          {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
           onRequestClose={() => {
             Keyboard.dismiss();
             handleCancelEdit();
@@ -731,7 +729,6 @@ function WalletDetailCard({
           visible={manualModalVisible}
           transparent
           animationType='fade'
-          {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
           onRequestClose={() => {
             Keyboard.dismiss();
             handleCancelManualPayment();

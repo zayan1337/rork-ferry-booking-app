@@ -6,7 +6,6 @@ import {
   StyleSheet,
   Pressable,
   Modal,
-  Platform,
   Keyboard,
 } from 'react-native';
 import { colors } from '@/constants/adminColors';
@@ -133,7 +132,6 @@ export default function UnitInput({
         visible={showUnitDropdown}
         transparent={true}
         animationType='fade'
-        {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
         onRequestClose={handleClose}
       >
         <Pressable style={styles.modalOverlay} onPress={handleClose}>

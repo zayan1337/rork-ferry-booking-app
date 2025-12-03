@@ -150,7 +150,6 @@ export default function ExportModal({
       visible={visible}
       animationType='slide'
       transparent={true}
-      {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
       onRequestClose={handleClose}
     >
       <View style={styles.overlay}>

@@ -457,7 +457,8 @@ export default function LoginScreen() {
         visible={showViewAllModal}
         transparent={true}
         animationType='slide'
-        {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
+        // Note: Don't use presentationStyle: 'pageSheet' with transparent modals
+        // as it causes the overlay background not to display correctly on iOS
         onRequestClose={handleCloseViewAllModal}
       >
         <Pressable

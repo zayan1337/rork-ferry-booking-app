@@ -425,7 +425,6 @@ export default function AdminProfileModal() {
         visible={isEditModalVisible}
         animationType='slide'
         transparent={true}
-        {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
         onRequestClose={closeEditModal}
       >
         <View style={styles.modalOverlay}>
@@ -484,7 +483,6 @@ export default function AdminProfileModal() {
         visible={isPasswordModalVisible}
         animationType='slide'
         transparent={true}
-        {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
         onRequestClose={closePasswordModal}
       >
         <View style={styles.modalOverlay}>

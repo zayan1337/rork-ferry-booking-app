@@ -6,7 +6,6 @@ import {
   ScrollView,
   Pressable,
   Switch,
-  Platform,
   Keyboard,
 } from 'react-native';
 import { X } from 'lucide-react-native';
@@ -41,7 +40,6 @@ export default function SystemSettingsModal({
       visible={visible}
       transparent
       animationType='slide'
-      {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
       onRequestClose={handleClose}
     >
       <View style={styles.modalOverlay}>

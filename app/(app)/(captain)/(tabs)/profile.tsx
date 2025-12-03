@@ -577,7 +577,6 @@ export default function CaptainProfileScreen() {
         visible={isEditModalVisible}
         animationType='slide'
         transparent={true}
-        {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
         onRequestClose={closeEditModal}
       >
         <View style={styles.modalOverlay}>
@@ -637,7 +636,6 @@ export default function CaptainProfileScreen() {
         visible={isDeleteModalVisible}
         animationType='slide'
         transparent={true}
-        {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
         onRequestClose={closeDeleteModal}
       >
         <View style={styles.modalOverlay}>
@@ -694,7 +692,6 @@ export default function CaptainProfileScreen() {
         visible={isPasswordModalVisible}
         animationType='slide'
         transparent={true}
-        {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
         onRequestClose={closePasswordModal}
       >
         <View style={styles.modalOverlay}>

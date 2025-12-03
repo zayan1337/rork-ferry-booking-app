@@ -9,7 +9,6 @@ import {
   RefreshControl,
   TextInput,
   Modal,
-  Platform,
   Keyboard,
 } from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
@@ -482,7 +481,6 @@ export default function TripBookingsPage() {
           visible={showFilterModal}
           transparent
           animationType='fade'
-          {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
           onRequestClose={() => {
             Keyboard.dismiss();
             setShowFilterModal(false);

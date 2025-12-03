@@ -7,7 +7,6 @@ import {
   Modal,
   FlatList,
   TextInput,
-  Platform,
   Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -100,7 +99,8 @@ const Dropdown: React.FC<DropdownProps> = ({
         visible={modalVisible}
         animationType='slide'
         transparent={true}
-        {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
+        // Note: Don't use presentationStyle: 'pageSheet' with transparent modals
+        // as it causes the overlay background not to display correctly on iOS
         onRequestClose={handleCancel}
       >
         <SafeAreaView style={styles.modalContainer}>

@@ -253,7 +253,6 @@ export default function OperationTeamModal({
       visible={visible}
       animationType='slide'
       transparent={true}
-      {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
       onRequestClose={handleClose}
       statusBarTranslucent
     >

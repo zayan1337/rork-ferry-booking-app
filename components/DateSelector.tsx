@@ -309,7 +309,8 @@ export const DateSelector: React.FC<DateSelectorProps> = ({
         visible={modalVisible}
         transparent={true}
         animationType='slide'
-        {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
+        // Note: Don't use presentationStyle: 'pageSheet' with transparent modals
+        // as it causes the overlay background not to display correctly on iOS
         onRequestClose={() => {
           Keyboard.dismiss();
           setModalVisible(false);

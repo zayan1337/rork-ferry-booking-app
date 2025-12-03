@@ -113,7 +113,8 @@ const DatePicker: React.FC<DatePickerProps> = ({
         visible={modalVisible}
         animationType='slide'
         transparent={true}
-        {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
+        // Note: Don't use presentationStyle: 'pageSheet' with transparent modals
+        // as it causes the overlay background not to display correctly on iOS
         onRequestClose={handleCancel}
       >
         <SafeAreaView style={styles.modalContainer}>

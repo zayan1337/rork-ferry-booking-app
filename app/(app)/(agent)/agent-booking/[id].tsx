@@ -1556,7 +1556,6 @@ export default function BookingDetailsScreen() {
         visible={showCancelConfirmModal}
         transparent={true}
         animationType='fade'
-        {...(Platform.OS === 'ios' && { presentationStyle: 'pageSheet' })}
         onRequestClose={() => {
           if (!isCancelling) {
             Keyboard.dismiss();
