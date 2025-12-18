@@ -18,6 +18,7 @@ export default React.memo(function AdminLayout() {
             fontSize: 18,
           },
           headerShadowVisible: false,
+          headerBackTitle: '',
         }}
       >
         <Stack.Screen name='(tabs)' options={{ headerShown: false }} />

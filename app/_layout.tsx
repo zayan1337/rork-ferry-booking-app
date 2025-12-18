@@ -9,6 +9,7 @@ import * as Linking from 'expo-linking';
 import SafeView from '../components/SafeView';
 import { AuthLoadingScreen } from '@/components';
 import { AlertProvider } from '@/components/AlertProvider';
+import { config } from '@/utils/config';
 // import CustomSplashScreen from '../components/SplashScreen';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
@@ -70,12 +71,7 @@ function RootLayoutNav() {
   // Handle deep linking for payment success
   useEffect(() => {
     const handleDeepLink = (url: string) => {
-      if (
-        url.includes(
-          process.env.EXPO_PUBLIC_MIB_RETURN_URL ||
-            'crystaltransfervaavu://payment-success'
-        )
-      ) {
+      if (url.includes(config.MIB_RETURN_URL)) {
         try {
           const urlObj = new URL(url);
           const bookingId = urlObj.searchParams.get('bookingId');

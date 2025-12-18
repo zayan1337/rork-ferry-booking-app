@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { config } from './config';
 import type { PaymentMethod } from '@/types/pages/booking';
 
 /**
@@ -106,8 +107,8 @@ export const processMibPayment = async (
     }
 
     // Create return URLs for payment success/failure
-    const returnUrl = `${process.env.EXPO_PUBLIC_MIB_RETURN_URL}?bookingId=${bookingId}&result=SUCCESS`;
-    const cancelUrl = `${process.env.EXPO_PUBLIC_MIB_CANCEL_URL}?bookingId=${bookingId}&result=CANCELLED`;
+    const returnUrl = `${config.MIB_RETURN_URL}?bookingId=${bookingId}&result=SUCCESS`;
+    const cancelUrl = `${config.MIB_CANCEL_URL}?bookingId=${bookingId}&result=CANCELLED`;
 
     // Call Supabase Edge Function to create MIB session
     const { data, error } = await supabase.functions.invoke('mib-payment', {
@@ -157,8 +158,8 @@ export const initiateMibPayment = async (
     }
 
     // Create return URLs for payment success/failure
-    const returnUrl = `${process.env.EXPO_PUBLIC_MIB_RETURN_URL}?bookingId=${bookingId}&result=SUCCESS`;
-    const cancelUrl = `${process.env.EXPO_PUBLIC_MIB_CANCEL_URL}?bookingId=${bookingId}&result=CANCELLED`;
+    const returnUrl = `${config.MIB_RETURN_URL}?bookingId=${bookingId}&result=SUCCESS`;
+    const cancelUrl = `${config.MIB_CANCEL_URL}?bookingId=${bookingId}&result=CANCELLED`;
 
     // Call Supabase Edge Function to create MIB session
     const { data, error } = await supabase.functions.invoke('mib-payment', {
@@ -402,8 +403,8 @@ export const createMibSession = async (bookingDetails: {
     }
 
     // Create return URLs for payment success/failure
-    const returnUrl = `${process.env.EXPO_PUBLIC_MIB_RETURN_URL}?bookingId=${bookingDetails.bookingId}&result=SUCCESS`;
-    const cancelUrl = `${process.env.EXPO_PUBLIC_MIB_CANCEL_URL}?bookingId=${bookingDetails.bookingId}&result=CANCELLED`;
+    const returnUrl = `${config.MIB_RETURN_URL}?bookingId=${bookingDetails.bookingId}&result=SUCCESS`;
+    const cancelUrl = `${config.MIB_CANCEL_URL}?bookingId=${bookingDetails.bookingId}&result=CANCELLED`;
 
     // Call Supabase Edge Function to create MIB session
     const { data, error } = await supabase.functions.invoke('mib-payment', {

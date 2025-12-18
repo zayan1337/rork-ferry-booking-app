@@ -43,6 +43,7 @@ import {
 } from '@/utils/agentFormatters';
 import { CreditTransaction } from '@/types/agent';
 import { supabase } from '@/utils/supabase';
+import { config } from '@/utils/config';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const isTablet = screenWidth >= 768;
@@ -298,8 +299,8 @@ const CreditPaymentModal = React.memo(
 
         // Step 3: Create MIB payment session
         const topupId = transactionData.id;
-        const returnUrl = `${process.env.EXPO_PUBLIC_MIB_RETURN_URL || 'crystaltransfervaavu://payment-success'}?bookingId=${topupId}&result=SUCCESS&type=credit`;
-        const cancelUrl = `${process.env.EXPO_PUBLIC_MIB_CANCEL_URL || 'crystaltransfervaavu://payment-cancel'}?bookingId=${topupId}&result=CANCELLED&type=credit`;
+        const returnUrl = `${config.MIB_RETURN_URL}?bookingId=${topupId}&result=SUCCESS&type=credit`;
+        const cancelUrl = `${config.MIB_CANCEL_URL}?bookingId=${topupId}&result=CANCELLED&type=credit`;
 
         const { data: mibData, error: mibError } =
           await supabase.functions.invoke('mib-payment', {

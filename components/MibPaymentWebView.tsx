@@ -21,11 +21,10 @@ import {
 import { useAlertContext } from '@/components/AlertProvider';
 import { getMinutesUntilDeparture } from '@/utils/bookingUtils';
 import { BUFFER_MINUTES_PAYMENT_WINDOW } from '@/constants/customer';
+import { config } from '@/utils/config';
 
 // Custom URL scheme for payment callbacks
-const PAYMENT_RETURN_SCHEME =
-  process.env.EXPO_PUBLIC_MIB_RETURN_URL ||
-  'crystaltransfervaavu://payment-success';
+const PAYMENT_RETURN_SCHEME = config.MIB_RETURN_URL;
 
 interface MibPaymentWebViewProps {
   visible: boolean;

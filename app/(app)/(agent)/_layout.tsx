@@ -15,6 +15,7 @@ export default function AgentLayout() {
           headerTitleStyle: {
             fontWeight: '600',
           },
+          headerBackTitle: '',
         }}
       >
         <Stack.Screen name='(tabs)' options={{ headerShown: false }} />

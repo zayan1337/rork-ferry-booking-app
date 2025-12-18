@@ -14,6 +14,7 @@ export default function CaptainLayout() {
           headerTitleStyle: {
             fontWeight: '600',
           },
+          headerBackTitle: '',
         }}
       >
         <Stack.Screen name='(tabs)' options={{ headerShown: false }} />
