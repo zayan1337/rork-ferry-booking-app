@@ -4,6 +4,7 @@ import { Plus } from 'lucide-react-native';
 import { supabase } from '@/utils/supabase';
 import Colors from '@/constants/colors';
 import { useAlertContext } from '@/components/AlertProvider';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 
 interface GenerateTripsButtonProps {
   routeId: string;
@@ -25,7 +26,7 @@ export default function GenerateTripsButton({
 
     showConfirmation(
       'Generate Trips',
-      `Generate trips for this route on ${new Date(date).toLocaleDateString()}?`,
+      `Generate trips for this route on ${formatDateInMaldives(date, 'short-date')}?`,
       async () => {
         setIsGenerating(true);
         try {

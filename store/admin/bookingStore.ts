@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '@/utils/supabase';
+import { getMaldivesTodayString } from '@/utils/timezoneUtils';
 import {
   AdminBooking,
   AdminBookingStats,
@@ -413,14 +414,15 @@ export const useAdminBookingStore = create<AdminBookingState>((set, get) => ({
 
       const bookings = allBookings || [];
 
-      // Calculate today's and yesterday's dates with time ranges
-      const today = new Date().toISOString().split('T')[0];
+      // Calculate today's and yesterday's dates with time ranges (Maldives timezone)
+      const today = getMaldivesTodayString();
       const todayStart = `${today}T00:00:00`;
       const todayEnd = `${today}T23:59:59`;
 
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayDate = yesterday.toISOString().split('T')[0];
+      // Calculate yesterday in Maldives timezone
+      const todayDate = new Date(today + 'T00:00:00');
+      todayDate.setDate(todayDate.getDate() - 1);
+      const yesterdayDate = todayDate.toISOString().split('T')[0];
       const yesterdayStart = `${yesterdayDate}T00:00:00`;
       const yesterdayEnd = `${yesterdayDate}T23:59:59`;
 

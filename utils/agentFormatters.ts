@@ -1,5 +1,6 @@
 import { formatCurrency as baseCurrencyFormatter } from './currencyUtils';
 import { Agent, CreditTransaction } from '@/types/agent';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 
 /**
  * Format currency for agent interface
@@ -116,7 +117,7 @@ export const formatBookingDate = (date: string | null): string => {
   if (!date) return 'N/A';
 
   try {
-    return new Date(date).toLocaleDateString();
+    return formatDateInMaldives(date, 'short-date');
   } catch (error) {
     return 'Invalid Date';
   }

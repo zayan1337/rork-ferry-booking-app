@@ -1,4 +1,5 @@
 import { UserProfile } from '@/types/userManagement';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 
 /**
  * Formats user role for display
@@ -91,24 +92,14 @@ export const formatCurrency = (amount: number): string => {
  * Formats date for display
  */
 export const formatDate = (date: string): string => {
-  return new Date(date).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
+  return formatDateInMaldives(date, 'short-date');
 };
 
 /**
  * Formats date and time for display
  */
 export const formatDateTime = (date: string): string => {
-  return new Date(date).toLocaleString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  return formatDateInMaldives(date, 'datetime');
 };
 
 /**

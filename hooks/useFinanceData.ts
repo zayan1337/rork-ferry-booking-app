@@ -2,6 +2,7 @@ import { useEffect, useCallback, useMemo } from 'react';
 import { useFinanceStore } from '@/store/admin/financeStore';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 import type { Payment, Wallet, WalletTransaction } from '@/types/admin/finance';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 
 /**
  * Custom hook for managing finance data with comprehensive filtering and statistics
@@ -499,15 +500,9 @@ export const useFinanceData = () => {
     }).format(amount);
   }, []);
 
-  // Format date
+  // Format date using Maldives timezone
   const formatDate = useCallback((dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    return formatDateInMaldives(dateString, 'datetime');
   }, []);
 
   return {

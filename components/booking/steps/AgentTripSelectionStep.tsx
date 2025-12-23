@@ -13,6 +13,7 @@ import {
 } from '@/utils/bookingUtils';
 import { AGENT_BOOKING_BUFFER_MINUTES } from '@/constants/agent';
 import type { Trip } from '@/types/operations';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 
 const normalizeTripData = (tripData: any): Trip => {
   const now = new Date().toISOString();
@@ -325,7 +326,7 @@ export default function AgentTripSelectionStep() {
           <Text style={styles.noTripsText}>
             No trips available for this route on{' '}
             {currentBooking.departureDate &&
-              new Date(currentBooking.departureDate).toLocaleDateString()}
+              formatDateInMaldives(currentBooking.departureDate, 'short-date')}
             .{'\n\n'}
             Please try selecting a different date or route.
           </Text>
@@ -358,7 +359,7 @@ export default function AgentTripSelectionStep() {
               <Text style={styles.noTripsText}>
                 No return trips available for this route on{' '}
                 {currentBooking.returnDate &&
-                  new Date(currentBooking.returnDate).toLocaleDateString()}
+                  formatDateInMaldives(currentBooking.returnDate, 'short-date')}
                 .{'\n\n'}
                 Please try selecting a different date or route.
               </Text>

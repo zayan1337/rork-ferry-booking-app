@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, Pressable, Dimensions } from 'react-native';
 import { colors } from '@/constants/adminColors';
 import { FAQCategory } from '@/types/admin/management';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 import {
   Folder,
   Calendar,
@@ -67,12 +68,8 @@ const FAQCategoryItem: React.FC<FAQCategoryItemProps> = ({
   };
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
+    // Use Maldives timezone for consistent date display
+    return formatDateInMaldives(dateString, 'short-date');
   };
 
   const categoryColor = getCategoryColor(category.name);

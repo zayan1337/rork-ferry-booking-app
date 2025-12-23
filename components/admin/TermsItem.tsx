@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, Pressable, Dimensions } from 'react-native';
 import { colors } from '@/constants/adminColors';
 import { TermsAndConditions } from '@/types/content';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 import {
   FileText,
   Calendar,
@@ -51,7 +52,8 @@ const TermsItem: React.FC<TermsItemProps> = ({
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString();
+    // Use Maldives timezone for consistent date display
+    return formatDateInMaldives(dateString, 'short-date');
   };
 
   const getStatusColor = () => {

@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import type { Booking } from '@/types';
 import type { BookingEligibility } from '@/types/pages/booking';
+import { parseMaldivesDateTime } from '@/utils/timezoneUtils';
 
 interface UseBookingEligibilityProps {
   booking: Booking | null;
@@ -56,10 +57,14 @@ export const useBookingEligibility = ({
       };
     }
 
-    const departureDate = new Date(booking.departureDate);
-    const now = new Date();
+    // Parse departure in Maldives timezone for accurate comparison
+    const departureDateTime = parseMaldivesDateTime(
+      booking.departureDate,
+      booking.departureTime || '00:00'
+    );
+    const now = Date.now();
     const hoursUntilDeparture =
-      (departureDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+      (departureDateTime.getTime() - now) / (1000 * 60 * 60);
 
     const isModifiable = hoursUntilDeparture >= minimumModificationHours;
     const isCancellable = hoursUntilDeparture >= minimumCancellationHours;

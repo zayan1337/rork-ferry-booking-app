@@ -3,22 +3,27 @@ import {
   BOOKING_BUFFER_MINUTES,
   ALLOWED_TRIP_STATUSES,
 } from '@/constants/customer';
+import {
+  parseMaldivesDateTime,
+  isMaldivesDateInPast,
+  getMinutesUntilMaldivesDateTime,
+} from './timezoneUtils';
 
 /**
- * Check if a booking is expired based on its departure date
+ * Check if a booking is expired based on its departure date.
+ * Uses Maldives timezone for accurate comparison.
+ *
  * @param booking - The booking object to check
  * @returns true if the booking's departure date has passed, false otherwise
  */
 export const isBookingExpired = (booking: Booking | any): boolean => {
   if (!booking.departureDate) return false;
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0); // Set to start of day for accurate comparison
+  // Extract just the date part if it's an ISO string
+  const dateStr = booking.departureDate.split('T')[0];
 
-  const departureDate = new Date(booking.departureDate);
-  departureDate.setHours(0, 0, 0, 0); // Set to start of day
-
-  return departureDate < today;
+  // Compare in Maldives timezone
+  return isMaldivesDateInPast(dateStr);
 };
 
 /**
@@ -332,9 +337,11 @@ export const formatFare = (fare: number, currency: string = 'MVR'): string => {
 };
 
 /**
- * Check if a trip has departed or is about to depart
- * @param travelDate - Trip travel date (YYYY-MM-DD)
- * @param departureTime - Trip departure time (HH:MM or HH:MM:SS)
+ * Check if a trip has departed or is about to depart.
+ * Uses Maldives timezone for accurate comparison since trip times are in Maldives local time.
+ *
+ * @param travelDate - Trip travel date (YYYY-MM-DD) - Maldives local date
+ * @param departureTime - Trip departure time (HH:MM or HH:MM:SS) - Maldives local time
  * @param bufferMinutes - Buffer time before departure to prevent booking (default: BOOKING_BUFFER_MINUTES)
  * @returns true if trip is still bookable, false if departed or within buffer time
  */
@@ -348,11 +355,8 @@ export const isTripBookable = (
       return false;
     }
 
-    const now = new Date();
-
-    // Parse departure time (handle both HH:MM and HH:MM:SS formats)
-    const timeStr = departureTime.substring(0, 5); // Get HH:MM part
-    const tripDateTime = new Date(`${travelDate}T${timeStr}:00`);
+    // Parse the trip datetime in Maldives timezone
+    const tripDateTime = parseMaldivesDateTime(travelDate, departureTime);
 
     // Check if date parsing was successful
     if (isNaN(tripDateTime.getTime())) {
@@ -360,11 +364,12 @@ export const isTripBookable = (
       return false;
     }
 
-    // Calculate buffer time in milliseconds
+    // Calculate cutoff time (trip time minus buffer)
     const bufferMs = bufferMinutes * 60 * 1000;
-    const cutoffTime = new Date(tripDateTime.getTime() - bufferMs);
+    const cutoffTime = tripDateTime.getTime() - bufferMs;
 
-    return now < cutoffTime;
+    // Compare with current time
+    return Date.now() < cutoffTime;
   } catch (error) {
     console.error('Error checking if trip is bookable:', error);
     return false;
@@ -372,9 +377,11 @@ export const isTripBookable = (
 };
 
 /**
- * Get user-friendly message for why a trip cannot be booked
- * @param travelDate - Trip travel date (YYYY-MM-DD)
- * @param departureTime - Trip departure time (HH:MM or HH:MM:SS)
+ * Get user-friendly message for why a trip cannot be booked.
+ * Uses Maldives timezone for accurate comparison.
+ *
+ * @param travelDate - Trip travel date (YYYY-MM-DD) - Maldives local date
+ * @param departureTime - Trip departure time (HH:MM or HH:MM:SS) - Maldives local time
  * @param bufferMinutes - Buffer time before departure (default: BOOKING_BUFFER_MINUTES)
  * @returns User-friendly error message
  */
@@ -388,18 +395,18 @@ export const getTripUnavailableMessage = (
       return 'Trip information is incomplete.';
     }
 
-    const now = new Date();
-    const timeStr = departureTime.substring(0, 5);
-    const tripDateTime = new Date(`${travelDate}T${timeStr}:00`);
+    // Parse the trip datetime in Maldives timezone
+    const tripDateTime = parseMaldivesDateTime(travelDate, departureTime);
 
     if (isNaN(tripDateTime.getTime())) {
       return 'Trip information is invalid.';
     }
 
+    const now = Date.now();
     const bufferMs = bufferMinutes * 60 * 1000;
-    const cutoffTime = new Date(tripDateTime.getTime() - bufferMs);
+    const cutoffTime = tripDateTime.getTime() - bufferMs;
 
-    if (tripDateTime < now) {
+    if (tripDateTime.getTime() < now) {
       return 'This trip has already departed and is no longer available for booking.';
     } else if (now >= cutoffTime) {
       return `Booking closes ${bufferMinutes} minutes before departure. This trip is no longer available.`;
@@ -413,9 +420,11 @@ export const getTripUnavailableMessage = (
 };
 
 /**
- * Calculate minutes until trip departure
- * @param travelDate - Trip travel date (YYYY-MM-DD)
- * @param departureTime - Trip departure time (HH:MM or HH:MM:SS)
+ * Calculate minutes until trip departure.
+ * Uses Maldives timezone for accurate comparison.
+ *
+ * @param travelDate - Trip travel date (YYYY-MM-DD) - Maldives local date
+ * @param departureTime - Trip departure time (HH:MM or HH:MM:SS) - Maldives local time
  * @returns Minutes until departure (negative if past departure)
  */
 export const getMinutesUntilDeparture = (
@@ -427,16 +436,15 @@ export const getMinutesUntilDeparture = (
       return -1;
     }
 
-    const now = new Date();
-    const timeStr = departureTime.substring(0, 5);
-    const tripDateTime = new Date(`${travelDate}T${timeStr}:00`);
+    // Use timezone-aware calculation
+    const minutes = getMinutesUntilMaldivesDateTime(travelDate, departureTime);
 
-    if (isNaN(tripDateTime.getTime())) {
+    // Check for invalid date parsing
+    if (isNaN(minutes)) {
       return -1;
     }
 
-    const diffMs = tripDateTime.getTime() - now.getTime();
-    return Math.floor(diffMs / (60 * 1000));
+    return minutes;
   } catch (error) {
     console.error('Error calculating minutes until departure:', error);
     return -1;

@@ -1,30 +1,71 @@
 /**
- * Format a date string for display in booking details
- * @param dateString - ISO date string
- * @returns Formatted date string
+ * Date utility functions for the ferry booking app.
+ *
+ * All date/time display functions use Maldives timezone (UTC+5) to ensure
+ * consistent display regardless of the user's device timezone.
+ */
+
+import {
+  formatDateInMaldives,
+  getMinutesUntilMaldivesDateTime,
+  isMaldivesDateInPast,
+  getMaldivesTimeComponents,
+} from './timezoneUtils';
+
+/**
+ * Format a date string for display in booking details.
+ * Always displays in Maldives timezone.
+ *
+ * @param dateString - ISO date string or YYYY-MM-DD date string
+ * @returns Formatted date string (e.g., "Sat, Dec 20, 2025")
  */
 export const formatBookingDate = (dateString: string): string => {
-  const date = new Date(dateString);
-  return date.toLocaleDateString('en-US', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
+  if (!dateString) return '';
+
+  try {
+    // If it's just a date string (YYYY-MM-DD), treat it as Maldives local date
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+      // Parse as Maldives date and format using safe method
+      const date = new Date(dateString + 'T12:00:00+05:00');
+      return formatDateInMaldives(date, 'date');
+    }
+
+    // For ISO strings, format directly in Maldives timezone
+    return formatDateInMaldives(dateString, 'date');
+  } catch (error) {
+    console.error('formatBookingDate: Error formatting date', error);
+    return dateString;
+  }
 };
 
 /**
- * Format a date string for simple display
- * @param dateString - ISO date string
+ * Format a date string for simple display.
+ * Always displays in Maldives timezone.
+ *
+ * @param dateString - ISO date string or YYYY-MM-DD date string
  * @returns Formatted date string
  */
 export const formatSimpleDate = (dateString: string): string => {
-  const date = new Date(dateString);
-  return date.toLocaleDateString();
+  if (!dateString) return '';
+
+  try {
+    // If it's just a date string (YYYY-MM-DD), treat it as Maldives local date
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+      const date = new Date(dateString + 'T12:00:00+05:00');
+      return formatDateInMaldives(date, 'short-date');
+    }
+
+    return formatDateInMaldives(dateString, 'short-date');
+  } catch (error) {
+    console.error('formatSimpleDate: Error formatting date', error);
+    return dateString;
+  }
 };
 
 /**
- * Calculate hours until a specific date
+ * Calculate hours until a specific date.
+ * Uses Maldives timezone for accurate calculation.
+ *
  * @param dateString - Target date string
  * @returns Number of hours until the target date
  */
@@ -35,21 +76,29 @@ export const getHoursUntil = (dateString: string): number => {
 };
 
 /**
- * Check if a date is in the past
- * @param dateString - Date string to check
- * @returns True if the date is in the past
+ * Check if a date is in the past (comparing dates only, not times).
+ * Uses Maldives timezone for comparison.
+ *
+ * @param dateString - Date string to check (YYYY-MM-DD format preferred)
+ * @returns True if the date is in the past in Maldives timezone
  */
 export const isDateInPast = (dateString: string): boolean => {
+  if (!dateString) return false;
+
+  // If it's a YYYY-MM-DD string, use Maldives date comparison
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+    return isMaldivesDateInPast(dateString);
+  }
+
+  // For full ISO strings, compare with current time
   const date = new Date(dateString);
-  const now = new Date();
-  date.setHours(0, 0, 0, 0);
-  now.setHours(0, 0, 0, 0);
-  return date < now;
+  return date.getTime() < Date.now();
 };
 
 /**
- * Normalize time format to ensure proper parsing by JavaScript Date
- * Handles formats: HH:mm, HH:mm:ss, HH:mm:ss.SSS, Date objects, and null/undefined
+ * Normalize time format to ensure proper parsing by JavaScript Date.
+ * Handles formats: HH:mm, HH:mm:ss, HH:mm:ss.SSS, Date objects, and null/undefined.
+ *
  * @param timeStr - Time string or Date object
  * @returns Normalized time string in HH:mm:ss format
  */
@@ -61,12 +110,21 @@ export const normalizeTime = (
     return '00:00:00';
   }
 
-  // If it's a Date object, extract time
+  // If it's a Date object, extract time in Maldives timezone using safe method
   if (timeStr instanceof Date) {
-    const hours = timeStr.getHours().toString().padStart(2, '0');
-    const minutes = timeStr.getMinutes().toString().padStart(2, '0');
-    const seconds = timeStr.getSeconds().toString().padStart(2, '0');
-    return `${hours}:${minutes}:${seconds}`;
+    try {
+      const components = getMaldivesTimeComponents(timeStr);
+      const hours = components.hours.toString().padStart(2, '0');
+      const minutes = components.minutes.toString().padStart(2, '0');
+      const seconds = components.seconds.toString().padStart(2, '0');
+      return `${hours}:${minutes}:${seconds}`;
+    } catch (error) {
+      // Fallback to local time
+      const hours = timeStr.getHours().toString().padStart(2, '0');
+      const minutes = timeStr.getMinutes().toString().padStart(2, '0');
+      const seconds = timeStr.getSeconds().toString().padStart(2, '0');
+      return `${hours}:${minutes}:${seconds}`;
+    }
   }
 
   // Convert to string and remove any whitespace
@@ -119,7 +177,9 @@ export const normalizeTime = (
 };
 
 /**
- * Format time string from 24-hour format to 12-hour AM/PM format
+ * Format time string from 24-hour format to 12-hour AM/PM format.
+ * The time is treated as Maldives local time.
+ *
  * @param timeString - Time string in format "HH:mm:ss" or "HH:mm"
  * @returns Formatted time string in 12-hour AM/PM format
  */
@@ -139,4 +199,30 @@ export const formatTimeAMPM = (timeString: string): string => {
   const displayHours = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
 
   return `${displayHours}:${minutes} ${period}`;
+};
+
+/**
+ * Format a full datetime for display in Maldives timezone.
+ *
+ * @param dateString - ISO date string
+ * @returns Formatted datetime string
+ */
+export const formatDateTime = (dateString: string): string => {
+  if (!dateString) return '';
+  return formatDateInMaldives(dateString, 'datetime');
+};
+
+/**
+ * Get minutes until a trip departure.
+ * Uses Maldives timezone for accurate calculation.
+ *
+ * @param travelDate - Trip travel date (YYYY-MM-DD)
+ * @param departureTime - Trip departure time (HH:MM or HH:MM:SS)
+ * @returns Minutes until departure (negative if past departure)
+ */
+export const getMinutesUntilDeparture = (
+  travelDate: string,
+  departureTime: string
+): number => {
+  return getMinutesUntilMaldivesDateTime(travelDate, departureTime);
 };

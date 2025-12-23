@@ -1,4 +1,5 @@
 import { AdminManagement } from '@/types';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 
 type Zone = AdminManagement.Zone;
 type ZoneFormData = AdminManagement.ZoneFormData;
@@ -197,7 +198,7 @@ export const exportZonesToCSV = (zones: Zone[]): string => {
     zone.order_index.toString(),
     (zone.total_islands || 0).toString(),
     (zone.active_islands || 0).toString(),
-    new Date(zone.created_at).toLocaleDateString(),
+    formatDateInMaldives(zone.created_at, 'short-date'),
   ]);
 
   return [headers, ...rows]
@@ -281,7 +282,7 @@ const formatTimeAgo = (dateString: string): string => {
     const days = Math.floor(diffInSeconds / 86400);
     return `${days} day${days > 1 ? 's' : ''} ago`;
   } else {
-    return date.toLocaleDateString();
+    return formatDateInMaldives(date, 'short-date');
   }
 };
 

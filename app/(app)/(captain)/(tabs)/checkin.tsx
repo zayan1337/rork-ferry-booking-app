@@ -32,6 +32,10 @@ import {
   normalizeTime,
 } from '@/utils/dateUtils';
 import { useAlertContext } from '@/components/AlertProvider';
+import {
+  parseMaldivesDateTime,
+  formatDateInMaldives,
+} from '@/utils/timezoneUtils';
 
 const { width } = Dimensions.get('window');
 
@@ -118,10 +122,11 @@ export default function CaptainCheckinScreen() {
     }
 
     // Check if it's within the check-in window (30 minutes before and after departure)
-    // Normalize time format to ensure proper parsing
+    // Parse departure datetime in Maldives timezone for accurate comparison
     const normalizedTime = normalizeTime(booking.departureTime || '00:00:00');
-    const departureDateTime = new Date(
-      `${booking.departureDate}T${normalizedTime}`
+    const departureDateTime = parseMaldivesDateTime(
+      booking.departureDate,
+      normalizedTime
     );
 
     // Validate that the date was parsed correctly
@@ -133,8 +138,8 @@ export default function CaptainCheckinScreen() {
       return;
     }
 
-    const now = new Date();
-    const timeDifferenceMs = departureDateTime.getTime() - now.getTime();
+    const nowMs = Date.now();
+    const timeDifferenceMs = departureDateTime.getTime() - nowMs;
     const timeDifferenceMinutes = timeDifferenceMs / (1000 * 60);
 
     // Allow check-in 30 minutes before and 30 minutes after departure
@@ -144,15 +149,16 @@ export default function CaptainCheckinScreen() {
     if (!isWithinCheckInWindow) {
       // Use normalizedTime for display to ensure correct time format
       const departureTimeStr = `${formatBookingDate(booking.departureDate)} at ${formatTimeAMPM(normalizedTime)}`;
+      const currentTimeStr = formatDateInMaldives(new Date(), 'datetime');
       if (timeDifferenceMinutes > 30) {
         showWarning(
           'Too Early for Check-in',
-          `Check-in opens 30 minutes before departure.\n\nDeparture: ${departureTimeStr}\nCurrent time: ${now.toLocaleString()}\n\nPlease wait ${Math.ceil(timeDifferenceMinutes - 30)} more minutes.`
+          `Check-in opens 30 minutes before departure.\n\nDeparture: ${departureTimeStr}\nCurrent time: ${currentTimeStr}\n\nPlease wait ${Math.ceil(timeDifferenceMinutes - 30)} more minutes.`
         );
       } else {
         showWarning(
           'Check-in Window Closed',
-          `Check-in closes 30 minutes after departure.\n\nDeparture was: ${departureTimeStr}\nCurrent time: ${now.toLocaleString()}\n\nCheck-in window has expired.`
+          `Check-in closes 30 minutes after departure.\n\nDeparture was: ${departureTimeStr}\nCurrent time: ${currentTimeStr}\n\nCheck-in window has expired.`
         );
       }
       return;
@@ -226,7 +232,7 @@ export default function CaptainCheckinScreen() {
 
           showSuccess(
             'Check-in Successful',
-            `${(booking as any).passengers?.length || (booking as any).passengerCount || 0} passenger(s) have been checked in for booking ${booking.bookingNumber}.\n\nCheck-in completed at ${new Date().toLocaleTimeString()}.`
+            `${(booking as any).passengers?.length || (booking as any).passengerCount || 0} passenger(s) have been checked in for booking ${booking.bookingNumber}.\n\nCheck-in completed at ${formatDateInMaldives(new Date(), 'time')}.`
           );
         } catch (error) {
           const errorMessage =
@@ -284,12 +290,13 @@ export default function CaptainCheckinScreen() {
       }
       // Check if it's within the valid time window
       else {
-        // Normalize time format to ensure proper parsing
+        // Normalize time format and parse in Maldives timezone
         const normalizedTime = normalizeTime(
           booking.departureTime || '00:00:00'
         );
-        const departureDateTime = new Date(
-          `${booking.departureDate}T${normalizedTime}`
+        const departureDateTime = parseMaldivesDateTime(
+          booking.departureDate,
+          normalizedTime
         );
 
         // Validate that the date was parsed correctly
@@ -299,8 +306,8 @@ export default function CaptainCheckinScreen() {
           );
         }
 
-        const now = new Date();
-        const timeDifferenceMs = departureDateTime.getTime() - now.getTime();
+        const nowMs = Date.now();
+        const timeDifferenceMs = departureDateTime.getTime() - nowMs;
         const timeDifferenceMinutes = timeDifferenceMs / (1000 * 60);
 
         // Check if within check-in window (30 minutes before and after departure)
@@ -319,8 +326,7 @@ export default function CaptainCheckinScreen() {
             'Ticket has already been used (passengers checked in).';
 
           if (currentBooking.checked_in_at) {
-            const checkedInTime = new Date(currentBooking.checked_in_at);
-            additionalInfo = `\nChecked in at: ${checkedInTime.toLocaleString()}`;
+            additionalInfo = `\nChecked in at: ${formatDateInMaldives(currentBooking.checked_in_at, 'datetime')}`;
           }
         } else if (isWithinCheckInWindow) {
           ticketStatus = 'Valid';

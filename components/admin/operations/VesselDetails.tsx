@@ -11,6 +11,7 @@ import { colors } from '@/constants/adminColors';
 import { useAlertContext } from '@/components/AlertProvider';
 import { Vessel } from '@/types/admin/management';
 import { formatCurrency } from '@/utils/currencyUtils';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 import Button from '@/components/admin/Button';
 import FerryLayoutDisplay from './FerryLayoutDisplay';
 import {
@@ -858,7 +859,7 @@ export default function VesselDetails({
             <View style={styles.systemRow}>
               <Text style={styles.systemLabel}>Created Date</Text>
               <Text style={styles.systemValue}>
-                {new Date(vessel.created_at).toLocaleDateString()}
+                {formatDateInMaldives(vessel.created_at, 'short-date')}
               </Text>
             </View>
           )}
@@ -867,7 +868,7 @@ export default function VesselDetails({
             <View style={styles.systemRow}>
               <Text style={styles.systemLabel}>Last Updated</Text>
               <Text style={styles.systemValue}>
-                {new Date(vessel.updated_at).toLocaleDateString()}
+                {formatDateInMaldives(vessel.updated_at, 'short-date')}
               </Text>
             </View>
           )}

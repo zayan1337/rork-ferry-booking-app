@@ -1,5 +1,6 @@
 import { Dimensions } from 'react-native';
 import { TermsAndConditions, Promotion } from '@/types/content';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -593,11 +594,11 @@ export const formatTermsForExport = (terms: TermsAndConditions[]) => {
     Title: term.title,
     Content: term.content,
     Version: term.version,
-    'Effective Date': new Date(term.effective_date).toLocaleDateString(),
+    'Effective Date': formatDateInMaldives(term.effective_date, 'short-date'),
     Status: term.is_active ? 'Active' : 'Inactive',
-    'Created At': new Date(term.created_at).toLocaleDateString(),
+    'Created At': formatDateInMaldives(term.created_at, 'short-date'),
     'Updated At': term.updated_at
-      ? new Date(term.updated_at).toLocaleDateString()
+      ? formatDateInMaldives(term.updated_at, 'short-date')
       : 'N/A',
   }));
 };
@@ -607,13 +608,13 @@ export const formatPromotionsForExport = (promotions: Promotion[]) => {
     Name: promotion.name,
     Description: promotion.description || '',
     'Discount (%)': promotion.discount_percentage,
-    'Start Date': new Date(promotion.start_date).toLocaleDateString(),
-    'End Date': new Date(promotion.end_date).toLocaleDateString(),
+    'Start Date': formatDateInMaldives(promotion.start_date, 'short-date'),
+    'End Date': formatDateInMaldives(promotion.end_date, 'short-date'),
     'First Time Only': promotion.is_first_time_booking_only ? 'Yes' : 'No',
     Status: promotion.is_active ? 'Active' : 'Inactive',
-    'Created At': new Date(promotion.created_at).toLocaleDateString(),
+    'Created At': formatDateInMaldives(promotion.created_at, 'short-date'),
     'Updated At': promotion.updated_at
-      ? new Date(promotion.updated_at).toLocaleDateString()
+      ? formatDateInMaldives(promotion.updated_at, 'short-date')
       : 'N/A',
   }));
 };
@@ -623,23 +624,11 @@ export const formatPromotionsForExport = (promotions: Promotion[]) => {
 // ============================================================================
 
 export const formatDate = (dateString: string): string => {
-  const date = new Date(dateString);
-  return new Intl.DateTimeFormat('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  }).format(date);
+  return formatDateInMaldives(dateString, 'short-date');
 };
 
 export const formatDateTime = (dateString: string): string => {
-  const date = new Date(dateString);
-  return new Intl.DateTimeFormat('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(date);
+  return formatDateInMaldives(dateString, 'datetime');
 };
 
 export const getTimeAgo = (dateString: string): string => {

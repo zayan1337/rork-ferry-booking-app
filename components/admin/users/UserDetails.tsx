@@ -19,6 +19,7 @@ import {
 import Button from '@/components/admin/Button';
 import StatCard from '@/components/admin/StatCard';
 import StatusBadge from '@/components/admin/StatusBadge';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 import {
   User,
   Mail,
@@ -243,7 +244,7 @@ export default function UserDetails({
               <View style={styles.infoContent}>
                 <Text style={styles.infoLabel}>Date of Birth</Text>
                 <Text style={styles.infoValue}>
-                  {new Date(user.date_of_birth).toLocaleDateString()}
+                  {formatDateInMaldives(user.date_of_birth, 'short-date')}
                   {userAge && ` (${userAge} years old)`}
                 </Text>
               </View>
@@ -257,7 +258,7 @@ export default function UserDetails({
             <View style={styles.infoContent}>
               <Text style={styles.infoLabel}>Member Since</Text>
               <Text style={styles.infoValue}>
-                {new Date(user.created_at).toLocaleDateString()}
+                {formatDateInMaldives(user.created_at, 'short-date')}
               </Text>
             </View>
           </View>
@@ -270,7 +271,7 @@ export default function UserDetails({
               <Text style={styles.infoLabel}>Last Active</Text>
               <Text style={styles.infoValue}>
                 {user.last_active_at
-                  ? new Date(user.last_active_at).toLocaleDateString()
+                  ? formatDateInMaldives(user.last_active_at, 'short-date')
                   : 'Never'}
               </Text>
             </View>

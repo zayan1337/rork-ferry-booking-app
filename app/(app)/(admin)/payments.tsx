@@ -22,6 +22,7 @@ import {
   DollarSign,
 } from 'lucide-react-native';
 import SearchBar from '@/components/admin/SearchBar';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 
 export default function PaymentsListPage() {
   const {
@@ -177,11 +178,7 @@ export default function PaymentsListPage() {
             </Text>
           </View>
           <Text style={styles.paymentDate}>
-            {new Date(item.created_at).toLocaleDateString('en-US', {
-              month: 'short',
-              day: 'numeric',
-              year: 'numeric',
-            })}
+            {formatDateInMaldives(item.created_at, 'short-date')}
           </Text>
         </View>
       </View>

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '@/utils/supabase';
 import { AdminManagement } from '@/types';
+import { getMaldivesTodayString } from '@/utils/timezoneUtils';
 
 type Route = AdminManagement.Route;
 type RouteFormData = AdminManagement.RouteFormData;
@@ -693,7 +694,7 @@ export const useRouteStore = create<RouteStore>((set, get) => ({
         .from('trips')
         .select('id')
         .eq('route_id', id)
-        .gt('travel_date', new Date().toISOString().split('T')[0])
+        .gt('travel_date', getMaldivesTodayString())
         .limit(1);
 
       if (tripsError) throw tripsError;

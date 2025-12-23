@@ -11,6 +11,7 @@ import {
   Alert as AdminAlert,
   ActivityLog as AdminActivityLog,
 } from '@/types/admin';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 
 export const getPermissionLevelColor = (level: PermissionLevel): string => {
   switch (level) {
@@ -104,7 +105,7 @@ export const calculateSettingsStats = (
     else if (diffDays === 1) lastBackup = 'Yesterday';
     else if (diffDays < 7) lastBackup = `${diffDays}d ago`;
     else if (diffDays < 30) lastBackup = `${Math.floor(diffDays / 7)}w ago`;
-    else lastBackup = backupDate.toLocaleDateString();
+    else lastBackup = formatDateInMaldives(backupDate, 'short-date');
   }
 
   return {

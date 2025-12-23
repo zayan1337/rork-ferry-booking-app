@@ -13,6 +13,7 @@ import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import Button from './Button';
 import { DatePickerProps } from '@/types/components';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 
 const CalendarDatePicker: React.FC<DatePickerProps> = ({
   label,
@@ -118,13 +119,8 @@ const CalendarDatePicker: React.FC<DatePickerProps> = ({
   };
 
   const formatDisplayDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      weekday: 'short',
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    });
+    // Use Maldives timezone for consistent date display
+    return formatDateInMaldives(dateString, 'date');
   };
 
   const handlePreviousMonth = () => {
@@ -292,10 +288,7 @@ const CalendarDatePicker: React.FC<DatePickerProps> = ({
 
                   <Pressable onPress={handleMonthYearClick}>
                     <Text style={styles.monthYearText}>
-                      {currentMonth.toLocaleDateString('en-US', {
-                        month: 'long',
-                        year: 'numeric',
-                      })}
+                      {formatDateInMaldives(currentMonth, 'month-year')}
                     </Text>
                   </Pressable>
 

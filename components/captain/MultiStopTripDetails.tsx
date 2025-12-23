@@ -28,6 +28,7 @@ import type {
 import { getStopPassengerInfo } from '@/utils/multiStopTripUtils';
 import { useMultiStopStore } from '@/store/multiStopStore';
 import { CaptainRouteStop } from '@/types/captain';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 
 // Convert TripStop[] to CaptainRouteStop[]
 function convertTripStopsToCaptainRouteStops(
@@ -252,9 +253,10 @@ export default function MultiStopTripDetails({
               </Text>
               <Text style={styles.completedTime}>
                 {currentStop.boarding_completed_at &&
-                  new Date(
-                    currentStop.boarding_completed_at
-                  ).toLocaleTimeString()}
+                  formatDateInMaldives(
+                    currentStop.boarding_completed_at,
+                    'time'
+                  )}
               </Text>
             </Card>
           )}

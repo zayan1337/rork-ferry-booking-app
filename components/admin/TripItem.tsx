@@ -1,6 +1,7 @@
 import React, { memo, useMemo } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { colors } from '@/constants/adminColors';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 import {
   Navigation,
   Clock,
@@ -86,11 +87,8 @@ const getOccupancyLevel = (occupancy: number) => {
 
 const formatTime = (time: string) => {
   try {
-    return new Date(`1970-01-01T${time}`).toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true,
-    });
+    // Use Maldives timezone for consistent time display
+    return formatDateInMaldives(`1970-01-01T${time}`, 'time');
   } catch {
     return time;
   }
@@ -98,11 +96,8 @@ const formatTime = (time: string) => {
 
 const formatDate = (date: string) => {
   try {
-    return new Date(date).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      weekday: 'short',
-    });
+    // Use Maldives timezone for consistent date display
+    return formatDateInMaldives(date, 'short-date');
   } catch {
     return date;
   }

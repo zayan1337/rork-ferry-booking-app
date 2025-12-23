@@ -29,6 +29,7 @@ import {
 // Components
 import Button from '@/components/admin/Button';
 import LoadingSpinner from '@/components/admin/LoadingSpinner';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -277,7 +278,7 @@ export default function FAQCategoryDetailScreen() {
               <View style={styles.detailContent}>
                 <Text style={styles.detailLabel}>Created</Text>
                 <Text style={styles.detailValue}>
-                  {new Date(category.created_at).toLocaleDateString()}
+                  {formatDateInMaldives(category.created_at, 'short-date')}
                 </Text>
               </View>
             </View>
@@ -315,7 +316,8 @@ export default function FAQCategoryDetailScreen() {
                       {faq.question}
                     </Text>
                     <Text style={styles.faqMeta}>
-                      Updated {new Date(faq.updated_at).toLocaleDateString()}
+                      Updated{' '}
+                      {formatDateInMaldives(faq.updated_at, 'short-date')}
                     </Text>
                   </View>
                 </Pressable>

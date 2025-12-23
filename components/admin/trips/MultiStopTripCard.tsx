@@ -22,6 +22,7 @@ import Card from '@/components/Card';
 import Button from '@/components/Button';
 import type { MultiStopTrip } from '@/types/multiStopTrip';
 import { formatStopSequence } from '@/utils/multiStopTripUtils';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 
 interface MultiStopTripCardProps {
   trip: MultiStopTrip;
@@ -43,11 +44,8 @@ export default function MultiStopTripCard({
   };
 
   const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
+    // Use Maldives timezone for consistent date display
+    return formatDateInMaldives(date, 'short-date');
   };
 
   const getStatusColor = (status: string) => {

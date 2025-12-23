@@ -3,6 +3,7 @@ import { View, StyleSheet } from 'react-native';
 import { colors } from '@/constants/adminColors';
 import { AdminManagement } from '@/types';
 import FlexibleSeatManager from './FlexibleSeatManager';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 
 type Seat = AdminManagement.Seat;
 type SeatLayout = AdminManagement.SeatLayout;
@@ -47,7 +48,7 @@ export default function SeatArrangementManager({
             const layoutData: SeatLayout = {
               id: initialLayout?.id || '',
               vessel_id: vesselId,
-              layout_name: `Flexible Ferry Layout - ${new Date().toLocaleDateString()}`,
+              layout_name: `Flexible Ferry Layout - ${formatDateInMaldives(new Date(), 'short-date')}`,
               layout_data: {
                 rows: maxRows,
                 columns: maxCols,
@@ -106,7 +107,7 @@ export default function SeatArrangementManager({
                   const layoutData: SeatLayout = {
                     id: initialLayout?.id || '',
                     vessel_id: vesselId,
-                    layout_name: `Flexible Ferry Layout - ${new Date().toLocaleDateString()}`,
+                    layout_name: `Flexible Ferry Layout - ${formatDateInMaldives(new Date(), 'short-date')}`,
                     layout_data: {
                       rows: maxRows,
                       columns: maxCols,

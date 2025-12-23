@@ -10,6 +10,7 @@ import SectionHeader from '@/components/admin/SectionHeader';
 import StatCard from '@/components/admin/StatCard';
 import EmptyState from '@/components/admin/EmptyState';
 import { styles } from './styles';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 
 interface ActivityTabProps {
   filteredData: AdminActivityLog[];
@@ -137,10 +138,10 @@ export default function ActivityTab({
               </View>
               <View style={styles.activityTime}>
                 <Text style={styles.activityTimeText}>
-                  {new Date(log.created_at).toLocaleDateString()}
+                  {formatDateInMaldives(log.created_at, 'short-date')}
                 </Text>
                 <Text style={styles.activityTimeText}>
-                  {new Date(log.created_at).toLocaleTimeString()}
+                  {formatDateInMaldives(log.created_at, 'time')}
                 </Text>
               </View>
             </Pressable>

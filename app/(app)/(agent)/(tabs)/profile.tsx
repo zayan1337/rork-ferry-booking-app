@@ -47,6 +47,7 @@ import { useRefreshControl } from '@/hooks/useRefreshControl';
 import { formatAgentInitials, formatCurrency } from '@/utils/agentFormatters';
 import { getDashboardStats } from '@/utils/agentDashboard';
 import { formatProfileDate } from '@/utils/customerUtils';
+import { getMaldivesTodayString } from '@/utils/timezoneUtils';
 
 type EditableField = 'name' | 'mobile_number' | 'date_of_birth';
 
@@ -312,10 +313,12 @@ export default function AgentProfileScreen() {
 
   // Get recent activity summary
   const recentBookings = bookings.slice(0, 5);
-  const todayBookings = bookings.filter(
-    booking =>
-      new Date(booking.bookingDate).toDateString() === new Date().toDateString()
-  );
+  // Compare booking dates using Maldives timezone
+  const todayStr = getMaldivesTodayString();
+  const todayBookings = bookings.filter(booking => {
+    const bookingDateStr = booking.bookingDate?.split('T')[0] || '';
+    return bookingDateStr === todayStr;
+  });
 
   const renderProfileHeader = () => (
     <Card variant='elevated' style={styles.profileHeaderCard}>

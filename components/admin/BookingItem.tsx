@@ -5,6 +5,7 @@ import { Calendar, Clock, Users, MapPin } from 'lucide-react-native';
 import StatusBadge from './StatusBadge';
 import { Booking } from '@/types/admin';
 import { formatBookingDate, formatTimeAMPM } from '@/utils/dateUtils';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 
 interface BookingItemProps {
   booking: Booking;
@@ -59,15 +60,8 @@ export default function BookingItem({
 
   const formatDate = (dateString: string) => {
     try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year:
-          date.getFullYear() !== new Date().getFullYear()
-            ? 'numeric'
-            : undefined,
-      });
+      // Use Maldives timezone for consistent date display
+      return formatDateInMaldives(dateString, 'short-date');
     } catch {
       return dateString;
     }

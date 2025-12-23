@@ -1,4 +1,5 @@
 import type { Route, Trip, AgentClient } from '@/types/agent';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 
 /**
  * Booking form step configuration
@@ -52,12 +53,9 @@ export const formatTripOptions = (trips: Trip[] = []) => {
       trip.vesselName ||
       'Unknown Vessel';
 
-    // Format date (e.g., "Dec 25")
+    // Format date (e.g., "Dec 25") using Maldives timezone
     const travelDate = trip.travel_date
-      ? new Date(trip.travel_date).toLocaleDateString('en-US', {
-          month: 'short',
-          day: 'numeric',
-        })
+      ? formatDateInMaldives(trip.travel_date, 'short-date')
       : '';
 
     // Format time (e.g., "09:00")
@@ -262,10 +260,10 @@ export const formatBookingSummary = (booking: any) => {
       ? `${booking.returnRoute.fromIsland?.name || 'N/A'} → ${booking.returnRoute.toIsland?.name || 'N/A'}`
       : null,
     departureDate: booking.departureDate
-      ? new Date(booking.departureDate).toLocaleDateString()
+      ? formatDateInMaldives(booking.departureDate, 'short-date')
       : 'N/A',
     returnDate: booking.returnDate
-      ? new Date(booking.returnDate).toLocaleDateString()
+      ? formatDateInMaldives(booking.returnDate, 'short-date')
       : null,
     passengers: booking.passengers?.length || 0,
     seats:

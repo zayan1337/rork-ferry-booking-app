@@ -30,6 +30,7 @@ import {
 // Components
 import Button from '@/components/admin/Button';
 import LoadingSpinner from '@/components/admin/LoadingSpinner';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -184,13 +185,9 @@ export default function FAQDetailScreen() {
   const categoryColor = getCategoryColor(category?.name);
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    if (!dateString) return 'N/A';
+    // Use Maldives timezone for consistent datetime display
+    return formatDateInMaldives(dateString, 'datetime');
   };
 
   return (

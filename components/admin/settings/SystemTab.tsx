@@ -23,6 +23,7 @@ import SectionHeader from '@/components/admin/SectionHeader';
 import StatCard from '@/components/admin/StatCard';
 import StatusBadge from '@/components/admin/StatusBadge';
 import { styles } from './styles';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -89,7 +90,7 @@ export default function SystemTab({
     if (diffDays === 1) return 'Yesterday';
     if (diffDays < 7) return `${diffDays}d ago`;
     if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ago`;
-    return backupDate.toLocaleDateString();
+    return formatDateInMaldives(backupDate, 'short-date');
   }, [systemHealth?.last_backup, stats.lastBackup]);
 
   // Get database status

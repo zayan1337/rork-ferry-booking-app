@@ -1,4 +1,5 @@
 import { AdminBooking, BookingStatus } from '@/types/admin/management';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 
 /**
  * Formats booking status for display
@@ -120,35 +121,21 @@ export const formatCurrency = (amount: number): string => {
  * Formats date for display
  */
 export const formatDate = (date: string): string => {
-  return new Date(date).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
+  return formatDateInMaldives(date, 'short-date');
 };
 
 /**
  * Formats date and time for display
  */
 export const formatDateTime = (date: string): string => {
-  return new Date(date).toLocaleString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  return formatDateInMaldives(date, 'datetime');
 };
 
 /**
  * Formats time for display
  */
 export const formatTime = (time: string): string => {
-  return new Date(`2000-01-01T${time}`).toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true,
-  });
+  return formatDateInMaldives(`2000-01-01T${time}`, 'time');
 };
 
 /**

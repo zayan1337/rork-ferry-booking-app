@@ -31,6 +31,7 @@ import CalendarDatePicker from '@/components/CalendarDatePicker';
 import { formatBookingDate, formatTimeAMPM } from '@/utils/dateUtils';
 import { formatCurrency } from '@/utils/currencyUtils';
 import { useAlertContext } from '@/components/AlertProvider';
+import { getMaldivesTodayString } from '@/utils/timezoneUtils';
 
 const { width: screenWidth } = Dimensions.get('window');
 const isTablet = screenWidth > 768;
@@ -99,19 +100,22 @@ export default function CaptainTripsScreen() {
     fetchTripsByDate(date);
   };
 
+  // Get today's date in Maldives timezone for comparisons
+  const maldivesToday = getMaldivesTodayString();
+
   // Check if any filters are active
   const hasActiveFilters =
     statusFilter !== 'all' ||
     searchQuery.length > 0 ||
-    dateFilter !== new Date().toISOString().split('T')[0];
+    dateFilter !== maldivesToday;
 
   // Clear all filters
   const handleClearFilters = () => {
     setStatusFilter('all');
     setSearchQuery('');
-    const today = new Date().toISOString().split('T')[0];
-    setDateFilter(today);
-    fetchTripsByDate(today);
+    // Use Maldives timezone for today's date
+    setDateFilter(maldivesToday);
+    fetchTripsByDate(maldivesToday);
   };
 
   const handleTripPress = (trip: CaptainTrip) => {
@@ -417,7 +421,7 @@ export default function CaptainTripsScreen() {
       <Ship size={48} color={Colors.textSecondary} />
       <Text style={styles.emptyTitle}>No Trips Found</Text>
       <Text style={styles.emptyMessage}>
-        {dateFilter === new Date().toISOString().split('T')[0]
+        {dateFilter === maldivesToday
           ? "You don't have any trips scheduled for today."
           : `No trips found for ${formatBookingDate(dateFilter)}.`}
       </Text>

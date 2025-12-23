@@ -17,6 +17,7 @@ import {
   ChevronRight,
   ChevronDown,
 } from 'lucide-react-native';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 
 interface DatePickerProps {
   value: string;
@@ -154,12 +155,8 @@ export default function DatePicker({
   };
 
   const formatDisplayDate = (dateString: string) => {
-    const date = new Date(`${dateString}T00:00:00`);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
+    // Use Maldives timezone for consistent date display
+    return formatDateInMaldives(dateString, 'short-date');
   };
 
   const isToday = (day: number) => {

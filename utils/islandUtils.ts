@@ -1,5 +1,6 @@
 import { DatabaseIsland } from '@/types/database';
 import { Zone } from '@/types/admin/management';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 
 /**
  * Search islands by name or zone
@@ -305,7 +306,7 @@ export const exportIslandData = (islands: DatabaseIsland[]) => {
     name: island.name,
     zone: getIslandZoneDisplay(island),
     status: island.is_active ? 'Active' : 'Inactive',
-    created: new Date(island.created_at).toLocaleDateString(),
+    created: formatDateInMaldives(island.created_at, 'short-date'),
     id: island.id,
   }));
 };

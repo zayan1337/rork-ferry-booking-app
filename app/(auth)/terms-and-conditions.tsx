@@ -22,6 +22,7 @@ import Colors from '@/constants/colors';
 import Card from '@/components/Card';
 import Button from '@/components/Button';
 import { useAlertContext } from '@/components/AlertProvider';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 
 export default function TermsAndConditionsScreen() {
   const { showError } = useAlertContext();
@@ -72,11 +73,8 @@ export default function TermsAndConditionsScreen() {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
+    // Use Maldives timezone for consistent date display
+    return formatDateInMaldives(dateString, 'full');
   };
 
   const formatContent = (content: string) => {

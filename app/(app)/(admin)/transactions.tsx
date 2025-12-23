@@ -25,6 +25,7 @@ import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 import SearchBar from '@/components/admin/SearchBar';
 import StatCard from '@/components/admin/StatCard';
 import { WalletTransaction } from '@/types/admin/finance';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -128,7 +129,7 @@ export default function TransactionsListingScreen() {
             <View style={styles.transactionMeta}>
               <Clock size={12} color={colors.textSecondary} />
               <Text style={styles.transactionDate}>
-                {new Date(item.created_at).toLocaleString()}
+                {formatDateInMaldives(item.created_at, 'datetime')}
               </Text>
             </View>
           </View>

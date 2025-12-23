@@ -1,15 +1,10 @@
 import { Share } from 'react-native';
 import Colors from '@/constants/colors';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 
 // Formatting utilities
 export const formatBookingDate = (dateString: string) => {
-  const date = new Date(dateString);
-  return date.toLocaleDateString('en-US', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
+  return formatDateInMaldives(dateString, 'date');
 };
 
 // Status styling utilities

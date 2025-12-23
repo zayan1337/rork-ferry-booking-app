@@ -7,6 +7,7 @@ import SegmentTripCard from '@/components/booking/SegmentTripCard';
 import { getTripsForSegment } from '@/utils/segmentBookingUtils';
 import { TRIP_TYPES } from '@/constants/customer';
 import { formatBookingDate } from '@/utils/dateUtils';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 
 import {
   isTripBookable,
@@ -378,7 +379,10 @@ export default function TripSelectionStep() {
                   'selected island'}{' '}
                 on{' '}
                 {currentBooking.returnDate
-                  ? new Date(currentBooking.returnDate).toLocaleDateString()
+                  ? formatDateInMaldives(
+                      currentBooking.returnDate,
+                      'short-date'
+                    )
                   : 'selected date'}
                 .{'\n\n'}
                 This could mean:

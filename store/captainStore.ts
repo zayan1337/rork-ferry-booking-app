@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '@/utils/supabase';
+import { getMaldivesTodayString } from '@/utils/timezoneUtils';
 import {
   CaptainStore,
   CaptainTrip,
@@ -143,7 +144,7 @@ const initialState = {
     closeCheckin: false,
   },
   searchQuery: '',
-  dateFilter: new Date().toISOString().split('T')[0],
+  dateFilter: getMaldivesTodayString(),
   statusFilter: 'all',
   error: null,
 };
@@ -165,7 +166,7 @@ export const useCaptainStore = create<CaptainStore>((set, get) => ({
       } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      const today = new Date().toISOString().split('T')[0];
+      const today = getMaldivesTodayString();
 
       const { data, error } = await supabase
         .from('trips')
@@ -990,7 +991,7 @@ export const useCaptainStore = create<CaptainStore>((set, get) => ({
       } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      const today = new Date().toISOString().split('T')[0];
+      const today = getMaldivesTodayString();
 
       // Fetch today's active trips for the captain with vessel capacity
       const { data: tripsData, error: tripsError } = await supabase

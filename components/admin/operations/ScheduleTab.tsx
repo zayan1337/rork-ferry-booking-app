@@ -13,6 +13,10 @@ import { AlertTriangle, Calendar, Filter, X } from 'lucide-react-native';
 import SectionHeader from '@/components/admin/SectionHeader';
 import LoadingSpinner from '@/components/admin/LoadingSpinner';
 import Dropdown from '@/components/admin/Dropdown';
+import {
+  formatDateInMaldives,
+  getMaldivesTodayString,
+} from '@/utils/timezoneUtils';
 
 interface ScheduleTabProps {
   isActive: boolean;
@@ -71,7 +75,7 @@ export default function ScheduleTab({ isActive }: ScheduleTabProps) {
       filtered = todaySchedule;
     } else {
       // Fallback to all trips and filter for today's date
-      const today = new Date().toISOString().split('T')[0];
+      const today = getMaldivesTodayString();
       const allTripsArray = allTrips || [];
 
       // Debug: Show sample trip data to understand the format
@@ -169,15 +173,8 @@ export default function ScheduleTab({ isActive }: ScheduleTabProps) {
       if (firstTripDate === today) {
         return 'Today';
       } else {
-        const date = new Date(firstTripDate);
-        return date.toLocaleDateString('en-US', {
-          month: 'short',
-          day: 'numeric',
-          year:
-            date.getFullYear() !== new Date().getFullYear()
-              ? 'numeric'
-              : undefined,
-        });
+        // Use Maldives timezone for consistent date display
+        return formatDateInMaldives(firstTripDate, 'short-date');
       }
     }
     return 'Today';
@@ -244,11 +241,8 @@ export default function ScheduleTab({ isActive }: ScheduleTabProps) {
           return 'Today';
         }
 
-        const formatted = date.toLocaleDateString('en-US', {
-          month: 'short',
-          day: 'numeric',
-        });
-        return formatted;
+        // Use Maldives timezone for consistent date display
+        return formatDateInMaldives(dateStr, 'short-date');
       } catch (error) {
         return 'Today';
       }

@@ -24,6 +24,7 @@ import {
   ExternalLink,
   RefreshCw,
 } from 'lucide-react-native';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 
 export default function PaymentDetailPage() {
   const { paymentId } = useLocalSearchParams<{ paymentId: string }>();
@@ -178,7 +179,7 @@ export default function PaymentDetailPage() {
               {payment.status.replace('_', ' ').toUpperCase()}
             </Text>
             <Text style={styles.statusDate}>
-              {new Date(payment.updated_at).toLocaleString()}
+              {formatDateInMaldives(payment.updated_at, 'datetime')}
             </Text>
           </View>
         </View>
@@ -338,14 +339,8 @@ export default function PaymentDetailPage() {
               <View style={styles.timelineContent}>
                 <Text style={styles.timelineLabel}>Payment Created</Text>
                 <Text style={styles.timelineDate}>
-                  {new Date(payment.created_at).toLocaleString('en-US', {
-                    weekday: 'long',
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
+                  {formatDateInMaldives(payment.created_at, 'full')} at{' '}
+                  {formatDateInMaldives(payment.created_at, 'time')}
                 </Text>
               </View>
             </View>
@@ -360,14 +355,8 @@ export default function PaymentDetailPage() {
               <View style={styles.timelineContent}>
                 <Text style={styles.timelineLabel}>Last Updated</Text>
                 <Text style={styles.timelineDate}>
-                  {new Date(payment.updated_at).toLocaleString('en-US', {
-                    weekday: 'long',
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
+                  {formatDateInMaldives(payment.updated_at, 'full')} at{' '}
+                  {formatDateInMaldives(payment.updated_at, 'time')}
                 </Text>
               </View>
             </View>

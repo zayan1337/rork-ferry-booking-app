@@ -11,6 +11,7 @@ import { colors } from '@/constants/adminColors';
 import { useAlertContext } from '@/components/AlertProvider';
 import { Trip } from '@/types/operations';
 import { formatCurrency } from '@/utils/currencyUtils';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 import Button from '@/components/admin/Button';
 import StatCard from '@/components/admin/StatCard';
 import StatusBadge from '@/components/admin/StatusBadge';
@@ -44,10 +45,8 @@ const { width: screenWidth } = Dimensions.get('window');
 const formatTripTime = (time: string) => {
   if (!time) return '';
   try {
-    return new Date(`1970-01-01T${time}`).toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    // Use Maldives timezone for consistent time display
+    return formatDateInMaldives(`1970-01-01T${time}`, 'time');
   } catch {
     return time;
   }
@@ -281,12 +280,7 @@ export default function TripDetails({
             <View style={styles.infoContent}>
               <Text style={styles.infoLabel}>Date</Text>
               <Text style={styles.infoValue}>
-                {new Date(trip.travel_date).toLocaleDateString('en-US', {
-                  weekday: 'long',
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                })}
+                {formatDateInMaldives(trip.travel_date, 'full')}
               </Text>
             </View>
           </View>

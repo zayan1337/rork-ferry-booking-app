@@ -54,6 +54,11 @@ import {
   getBookingTrends,
   formatBookingStatus,
 } from '@/utils/agentDashboard';
+import {
+  parseMaldivesDateTime,
+  formatDateInMaldives,
+  getMaldivesTodayString,
+} from '@/utils/timezoneUtils';
 
 const { width: screenWidth } = Dimensions.get('window');
 const responsiveConfig = getResponsiveConfig(screenWidth);
@@ -369,18 +374,26 @@ const UpcomingDeparturesCard = ({
       <ScrollView style={styles.upcomingList} nestedScrollEnabled>
         {upcomingBookings.slice(0, 3).map(booking => {
           const statusInfo = formatBookingStatus(booking.status);
-          const departureDate = new Date(booking.departureDate);
-          const isToday =
-            departureDate.toDateString() === new Date().toDateString();
-          const isTomorrow =
-            departureDate.toDateString() ===
-            new Date(Date.now() + 86400000).toDateString();
+          // Parse departure date in Maldives timezone for accurate comparison
+          const departureDateTime = parseMaldivesDateTime(
+            booking.departureDate,
+            booking.departureTime || '00:00'
+          );
+          const todayStr = getMaldivesTodayString();
+          const departureDateStr = booking.departureDate?.split('T')[0] || '';
+
+          // Calculate tomorrow's date in Maldives timezone
+          const tomorrow = new Date(Date.now() + 86400000);
+          const tomorrowStr = formatDateInMaldives(tomorrow, 'YYYY-MM-DD');
+
+          const isToday = departureDateStr === todayStr;
+          const isTomorrow = departureDateStr === tomorrowStr;
 
           const dateLabel = isToday
             ? 'Today'
             : isTomorrow
               ? 'Tomorrow'
-              : departureDate.toLocaleDateString();
+              : formatDateInMaldives(departureDateStr, 'short-date');
 
           return (
             <View key={booking.id} style={styles.upcomingItem}>

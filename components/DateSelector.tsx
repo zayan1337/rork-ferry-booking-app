@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronDown, Calendar } from 'lucide-react-native';
 import colors from '@/constants/colors';
 import { DateSelectorProps } from '@/types/components';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 
 export const DateSelector: React.FC<DateSelectorProps> = ({
   label,
@@ -131,20 +132,13 @@ export const DateSelector: React.FC<DateSelectorProps> = ({
   };
 
   const formatDisplayDate = (dateString: string) => {
-    // Create date object by parsing the date string parts to avoid timezone issues
-    const [year, month, day] = dateString.split('-').map(Number);
-    const date = new Date(year, month - 1, day);
-    return date.toLocaleDateString('en-US', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    });
+    // Use Maldives timezone for consistent date display
+    return formatDateInMaldives(dateString, 'short-date');
   };
 
   const getMonthName = (month: number) => {
-    return new Date(2000, month, 1).toLocaleDateString('en-US', {
-      month: 'long',
-    });
+    // Use Maldives timezone for consistent month display
+    return formatDateInMaldives(new Date(2000, month, 1), 'month-long');
   };
 
   const handleSelectYear = (year: number) => {
@@ -249,7 +243,7 @@ export const DateSelector: React.FC<DateSelectorProps> = ({
               <Text
                 style={[styles.dayName, isSelected && styles.selectedItemText]}
               >
-                {item.toLocaleDateString('en-US', { weekday: 'short' })}
+                {formatDateInMaldives(item, 'weekday-short')}
               </Text>
               <Text
                 style={[
@@ -265,10 +259,7 @@ export const DateSelector: React.FC<DateSelectorProps> = ({
                   isSelected && styles.selectedItemText,
                 ]}
               >
-                {item.toLocaleDateString('en-US', {
-                  month: 'short',
-                  year: 'numeric',
-                })}
+                {formatDateInMaldives(item, 'month-year-short')}
               </Text>
             </Pressable>
           );

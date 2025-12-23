@@ -6,6 +6,7 @@ import Colors from '@/constants/colors';
 import type { Route } from '@/types';
 import type { Trip } from '@/types/booking';
 import { formatTripOptions } from '@/utils/bookingFormUtils';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 
 interface TripRouteSelectionStepProps {
   // Trip type
@@ -270,7 +271,7 @@ const TripRouteSelectionStep: React.FC<TripRouteSelectionStepProps> = ({
             <View style={styles.noTripsContainer}>
               <Text style={styles.noTripsText}>
                 ⚠️ No trips available for this route on{' '}
-                {new Date(departureDate).toLocaleDateString()}.
+                {formatDateInMaldives(departureDate, 'short-date')}.
               </Text>
               <Text style={styles.noTripsSubtext}>
                 💡 Try selecting a different date or contact the administrator
@@ -317,7 +318,7 @@ const TripRouteSelectionStep: React.FC<TripRouteSelectionStepProps> = ({
             <View style={styles.noTripsContainer}>
               <Text style={styles.noTripsText}>
                 ⚠️ No return trips available for this route on{' '}
-                {new Date(returnDate).toLocaleDateString()}.
+                {formatDateInMaldives(returnDate, 'short-date')}.
               </Text>
               <Text style={styles.noTripsSubtext}>
                 💡 Try selecting a different return date or contact the

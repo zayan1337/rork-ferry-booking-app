@@ -1,4 +1,5 @@
 import { BOOKING_BUFFER_MINUTES } from '@/constants/customer';
+import { parseMaldivesDateTime } from './timezoneUtils';
 
 export interface ExpiryCalculationResult {
   expiresAt: Date;
@@ -84,27 +85,17 @@ export function isBookingExpired(
 }
 
 /**
- * Combine travel date and departure time into a single Date object
+ * Combine travel date and departure time into a single Date object.
+ * The date and time are interpreted as Maldives local time.
  *
- * @param travelDate - Date string (YYYY-MM-DD)
- * @param departureTime - Time string (HH:MM or HH:MM:SS)
- * @returns Combined Date object
+ * @param travelDate - Date string (YYYY-MM-DD) - Maldives local date
+ * @param departureTime - Time string (HH:MM or HH:MM:SS) - Maldives local time
+ * @returns Combined Date object representing the correct UTC timestamp
  */
 export function combineTripDateTime(
   travelDate: string,
   departureTime: string
 ): Date {
-  // Parse travel date
-  const date = new Date(travelDate);
-
-  // Parse departure time (handle both HH:MM and HH:MM:SS formats)
-  const timeParts = departureTime.split(':');
-  const hours = parseInt(timeParts[0], 10);
-  const minutes = parseInt(timeParts[1], 10);
-
-  // Create combined date-time
-  const combined = new Date(date);
-  combined.setHours(hours, minutes, 0, 0);
-
-  return combined;
+  // Use timezone-aware parsing for Maldives local time
+  return parseMaldivesDateTime(travelDate, departureTime);
 }

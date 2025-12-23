@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { Zone, ZoneFormData, ZoneActivityLog } from '@/types/admin/management';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 
 // Fetch all zones with statistics
 export const fetchZones = async (): Promise<Zone[]> => {
@@ -304,8 +305,8 @@ export const exportZonesToCSV = async (): Promise<string> => {
       (zone.active_islands || 0).toString(),
       (zone.total_routes || 0).toString(),
       (zone.active_routes || 0).toString(),
-      new Date(zone.created_at).toLocaleDateString(),
-      new Date(zone.updated_at || zone.created_at).toLocaleDateString(),
+      formatDateInMaldives(zone.created_at, 'short-date'),
+      formatDateInMaldives(zone.updated_at || zone.created_at, 'short-date'),
     ]);
 
     return [headers, ...rows]

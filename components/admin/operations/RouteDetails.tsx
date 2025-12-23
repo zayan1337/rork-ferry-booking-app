@@ -12,6 +12,7 @@ import { useAlertContext } from '@/components/AlertProvider';
 import { Route } from '@/types/operations';
 import { formatRouteDistance, formatRouteDuration } from '@/utils/routeUtils';
 import { formatCurrency } from '@/utils/currencyUtils';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 import Button from '@/components/admin/Button';
 import StatCard from '@/components/admin/StatCard';
 import StatusBadge from '@/components/admin/StatusBadge';
@@ -199,7 +200,7 @@ export default function RouteDetails({
             <View style={styles.infoContent}>
               <Text style={styles.infoLabel}>Created</Text>
               <Text style={styles.infoValue}>
-                {new Date(route.created_at).toLocaleDateString()}
+                {formatDateInMaldives(route.created_at, 'short-date')}
               </Text>
             </View>
           </View>

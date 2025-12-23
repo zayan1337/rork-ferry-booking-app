@@ -45,6 +45,7 @@ import type {
 } from '@/types/pages/booking';
 import { getTripsForSegment } from '@/utils/segmentBookingUtils';
 import { formatBookingDate, formatTimeAMPM } from '@/utils/dateUtils';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 import { useAlertContext } from '@/components/AlertProvider';
 import SegmentTripCard from '@/components/booking/SegmentTripCard';
 import {
@@ -1243,7 +1244,11 @@ export default function ModifyBookingScreen() {
                   <Text style={styles.noTripsTitle}>No Trips Available</Text>
                   <Text style={styles.noTripsText}>
                     No trips available for this route on{' '}
-                    {new Date(selectedDate).toLocaleDateString()}.{'\n\n'}
+                    {formatDateInMaldives(
+                      selectedDate + 'T12:00:00+05:00',
+                      'short-date'
+                    )}
+                    .{'\n\n'}
                     Please try selecting a different date.
                   </Text>
                 </View>

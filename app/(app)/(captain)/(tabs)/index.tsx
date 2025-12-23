@@ -31,6 +31,7 @@ import StatCard from '@/components/StatCard';
 import { formatCurrency } from '@/utils/currencyUtils';
 import { formatBookingDate, formatTimeAMPM } from '@/utils/dateUtils';
 import { useAlertContext } from '@/components/AlertProvider';
+import { getMaldivesTimeComponents } from '@/utils/timezoneUtils';
 
 const { width: screenWidth } = Dimensions.get('window');
 const isTablet = screenWidth > 768;
@@ -80,9 +81,12 @@ export default function CaptainDashboardScreen() {
   };
 
   // Get today's trips summary
+  // Uses Maldives timezone for accurate comparison since trip times are in Maldives local time
   const getTodayTripsSummary = () => {
+    // Get current time in Maldives timezone
     const now = new Date();
-    const currentTime = now.getHours() * 60 + now.getMinutes();
+    const maldivesTime = getMaldivesTimeComponents(now);
+    const currentTime = maldivesTime.hours * 60 + maldivesTime.minutes;
 
     const upcoming = trips.filter(trip => {
       const [hours, minutes] = trip.departure_time.split(':').map(Number);
@@ -393,7 +397,9 @@ export default function CaptainDashboardScreen() {
   );
 
   const getTimeOfDay = () => {
-    const hour = new Date().getHours();
+    // Use Maldives timezone for proper greeting
+    const maldivesTime = getMaldivesTimeComponents(new Date());
+    const hour = maldivesTime.hours;
     if (hour < 12) return 'Morning';
     if (hour < 17) return 'Afternoon';
     return 'Evening';
@@ -421,12 +427,8 @@ export default function CaptainDashboardScreen() {
   );
 }
 
-const getTimeOfDay = () => {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'Morning';
-  if (hour < 17) return 'Afternoon';
-  return 'Evening';
-};
+// Note: This duplicate function is kept for backward compatibility
+// The one inside the component uses Maldives timezone properly
 
 const styles = StyleSheet.create({
   container: {

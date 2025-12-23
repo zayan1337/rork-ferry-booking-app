@@ -32,6 +32,7 @@ import {
 import Button from '@/components/admin/Button';
 import LoadingSpinner from '@/components/admin/LoadingSpinner';
 import { useAlertContext } from '@/components/AlertProvider';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -550,7 +551,7 @@ export default function IslandDetailScreen() {
                 <View style={styles.infoContent}>
                   <Text style={styles.infoLabel}>Created</Text>
                   <Text style={styles.infoValue}>
-                    {new Date(island.created_at).toLocaleDateString()}
+                    {formatDateInMaldives(island.created_at, 'short-date')}
                   </Text>
                 </View>
               </View>

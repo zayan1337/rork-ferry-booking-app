@@ -3,18 +3,14 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import type { FileType } from '@/components/admin/ExportModal';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 
 /**
  * Format date for export
  */
 export const formatExportDate = (date: Date | string | null): string => {
   if (!date) return '';
-  const d = typeof date === 'string' ? new Date(date) : date;
-  return d.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
+  return formatDateInMaldives(date, 'short-date');
 };
 
 /**
@@ -22,14 +18,7 @@ export const formatExportDate = (date: Date | string | null): string => {
  */
 export const formatExportDateTime = (date: Date | string | null): string => {
   if (!date) return '';
-  const d = typeof date === 'string' ? new Date(date) : date;
-  return d.toLocaleString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  return formatDateInMaldives(date, 'datetime');
 };
 
 /**
@@ -186,16 +175,7 @@ export const generateHTMLTable = (
 <body>
   <div class="header">
     <h1>${title}</h1>
-    <p class="generated-date">Generated on ${new Date().toLocaleString(
-      'en-US',
-      {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      }
-    )}</p>
+    <p class="generated-date">Generated on ${formatDateInMaldives(new Date(), 'datetime')}</p>
   </div>
   
   ${metadataHTML}
@@ -248,7 +228,7 @@ export const generateExcelHTML = (
 </head>
 <body>
   <h2>${title}</h2>
-  <p>Generated: ${new Date().toLocaleString()}</p>
+  <p>Generated: ${formatDateInMaldives(new Date(), 'datetime')}</p>
   <table>
     <thead>
       <tr>

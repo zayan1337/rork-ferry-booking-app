@@ -19,6 +19,7 @@ import {
 } from 'lucide-react-native';
 import MibPaymentWebView from '@/components/MibPaymentWebView';
 import { supabase } from '@/utils/supabase';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 
 export default function WalletPaymentPage() {
   const params = useLocalSearchParams();
@@ -292,7 +293,7 @@ export default function WalletPaymentPage() {
           bookingDetails={{
             bookingNumber: `WALLET-${walletId.substring(0, 8)}`,
             route: 'Agent Credit Payment',
-            travelDate: new Date().toLocaleDateString(),
+            travelDate: formatDateInMaldives(new Date(), 'short-date'),
             amount: amount,
             currency: 'MVR',
             passengerCount: 1,

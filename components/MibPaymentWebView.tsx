@@ -22,6 +22,7 @@ import { useAlertContext } from '@/components/AlertProvider';
 import { getMinutesUntilDeparture } from '@/utils/bookingUtils';
 import { BUFFER_MINUTES_PAYMENT_WINDOW } from '@/constants/customer';
 import { config } from '@/utils/config';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 
 // Custom URL scheme for payment callbacks
 const PAYMENT_RETURN_SCHEME = config.MIB_RETURN_URL;
@@ -340,11 +341,8 @@ export default function MibPaymentWebView({
     };
 
     const formatDate = (dateString: string) => {
-      return new Date(dateString).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-      });
+      // Use Maldives timezone for consistent date display
+      return formatDateInMaldives(dateString, 'full');
     };
 
     return `

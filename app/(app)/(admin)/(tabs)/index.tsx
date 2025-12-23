@@ -29,6 +29,7 @@ import AlertItem from '@/components/admin/AlertItem';
 import BookingItem from '@/components/admin/BookingItem';
 import Button from '@/components/admin/Button';
 import { useAlertContext } from '@/components/AlertProvider';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 
 export default function DashboardScreen() {
   const { dashboardStats, markAlertAsRead, markAllAlertsAsRead, refreshData } =
@@ -306,7 +307,7 @@ export default function DashboardScreen() {
                   <Text style={styles.activityUser}>by {log.user_name}</Text>
                 </View>
                 <Text style={styles.activityTime}>
-                  {new Date(log.created_at).toLocaleTimeString()}
+                  {formatDateInMaldives(log.created_at, 'time')}
                 </Text>
               </View>
             ))}

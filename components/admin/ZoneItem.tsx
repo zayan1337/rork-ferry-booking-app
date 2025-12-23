@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { colors } from '@/constants/adminColors';
 import { Zone } from '@/types/admin/management';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 import {
   MapPin,
   Clock,
@@ -26,11 +27,8 @@ const ZoneItem: React.FC<ZoneItemProps> = ({ zone, onPress, onMorePress }) => {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
+    // Use Maldives timezone for consistent date display
+    return formatDateInMaldives(dateString, 'short-date');
   };
 
   return (

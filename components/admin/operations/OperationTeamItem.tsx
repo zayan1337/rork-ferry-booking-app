@@ -14,6 +14,7 @@ import {
   BellOff,
 } from 'lucide-react-native';
 import { OperationTeamMember } from '@/hooks/useOperationTeamManagement';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 
 interface OperationTeamItemProps {
   member: OperationTeamMember;
@@ -152,7 +153,7 @@ export default function OperationTeamItem({
           <View style={styles.detailRow}>
             <Text style={styles.detailLabelText}>Added</Text>
             <Text style={styles.detailValue}>
-              {new Date(member.created_at).toLocaleDateString()}
+              {formatDateInMaldives(member.created_at, 'short-date')}
             </Text>
           </View>
 

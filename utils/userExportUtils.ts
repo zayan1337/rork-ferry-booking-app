@@ -13,6 +13,7 @@ import {
   formatExportDate,
   formatExportDateTime,
 } from './exportUtils';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 
 /**
  * Export users based on filters
@@ -69,11 +70,7 @@ export const exportUsers = async (
     // Generate metadata
     const metadata: Record<string, string> = {
       'Total Users': filteredUsers.length.toString(),
-      'Export Date': new Date().toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-      }),
+      'Export Date': formatDateInMaldives(new Date(), 'full'),
     };
 
     if (filters.dateFrom) {

@@ -21,6 +21,7 @@ import {
   DollarSign,
 } from 'lucide-react-native';
 import SearchBar from '@/components/admin/SearchBar';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 
 interface WalletsListPageProps {
   agentOnly?: boolean;
@@ -169,7 +170,7 @@ export default function WalletsListPage({
                 </Text>
               </View>
               <Text style={styles.walletDate}>
-                Updated {new Date(item.updated_at).toLocaleDateString()}
+                Updated {formatDateInMaldives(item.updated_at, 'short-date')}
               </Text>
             </View>
           </View>

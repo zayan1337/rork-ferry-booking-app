@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { getMaldivesTodayString } from '@/utils/timezoneUtils';
 import {
   fetchDashboardStats,
   fetchActivityLogs,
@@ -254,7 +255,7 @@ const mockPassengers: Passenger[] = [
     passenger_name: 'Jane Smith',
     passenger_contact_number: '+960-7123456',
     check_in_status: false,
-    trip_date: new Date().toISOString().split('T')[0],
+    trip_date: getMaldivesTodayString(),
     route_name: 'Male to Hulhule',
     vessel_name: 'MV Seabird',
     created_at: new Date().toISOString(),
@@ -1017,7 +1018,7 @@ export const useAdminStore = create<AdminState>()(
           const { supabase } = await import('@/utils/supabase');
 
           // Get upcoming trips (next 7 days) with special assistance
-          const today = new Date().toISOString().split('T')[0];
+          const today = getMaldivesTodayString();
           const endDateObj = new Date(today);
           endDateObj.setDate(endDateObj.getDate() + 7);
           const endDate = endDateObj.toISOString().split('T')[0];

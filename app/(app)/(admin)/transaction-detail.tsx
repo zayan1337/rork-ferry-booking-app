@@ -18,6 +18,7 @@ import {
   ArrowUpRight,
   ArrowDownLeft,
 } from 'lucide-react-native';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -256,7 +257,7 @@ export default function TransactionDetailScreen() {
         <View style={styles.detailItem}>
           <Text style={styles.detailLabel}>Transaction Date</Text>
           <Text style={styles.detailValue}>
-            {new Date(transaction?.created_at || '').toLocaleString()}
+            {formatDateInMaldives(transaction?.created_at || '', 'datetime')}
           </Text>
         </View>
 
@@ -347,7 +348,7 @@ export default function TransactionDetailScreen() {
       <View style={styles.relatedContent}>
         <Text style={styles.relatedDescription}>{item.description}</Text>
         <Text style={styles.relatedTime}>
-          {new Date(item.created_at).toLocaleString()}
+          {formatDateInMaldives(item.created_at, 'datetime')}
         </Text>
       </View>
 

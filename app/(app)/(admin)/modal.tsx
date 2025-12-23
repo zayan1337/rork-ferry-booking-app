@@ -31,6 +31,7 @@ import Button from '@/components/admin/Button';
 import Input from '@/components/Input';
 import CalendarDatePicker from '@/components/CalendarDatePicker';
 import { formatProfileDate } from '@/utils/customerUtils';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 
 type EditableField = 'full_name' | 'mobile_number' | 'date_of_birth';
 
@@ -397,7 +398,7 @@ export default function AdminProfileModal() {
           <View style={styles.systemItem}>
             <Text style={styles.systemLabel}>Last Login</Text>
             <Text style={styles.systemValue}>
-              {new Date().toLocaleDateString()}
+              {formatDateInMaldives(new Date(), 'short-date')}
             </Text>
           </View>
           <View style={styles.systemItem}>

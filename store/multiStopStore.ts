@@ -6,6 +6,7 @@
 
 import { create } from 'zustand';
 import { supabase } from '@/utils/supabase';
+import { getMaldivesTodayString } from '@/utils/timezoneUtils';
 import type {
   MultiStopTrip,
   TripStop,
@@ -64,7 +65,7 @@ export const useMultiStopStore = create<
     set({ isLoading: true, error: null });
 
     try {
-      const targetDate = date || new Date().toISOString().split('T')[0];
+      const targetDate = date || getMaldivesTodayString();
       const trips = await getMultiStopTripsForDate(targetDate);
 
       set({ multiStopTrips: trips });

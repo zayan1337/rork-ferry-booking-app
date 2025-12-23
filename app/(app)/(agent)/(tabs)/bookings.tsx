@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Plus, Search, SortAsc, Calendar } from 'lucide-react-native';
+import { parseMaldivesDateTime } from '@/utils/timezoneUtils';
 
 import Colors from '@/constants/colors';
 import AgentBookingCard from '@/components/AgentBookingCard';
@@ -65,10 +66,13 @@ export default function AgentBookingsScreen() {
       // Filter by status or upcoming
       if (activeTab === 'upcoming') {
         // Show only future departures that are confirmed or pending
-        const departureDate = new Date(booking.departureDate);
-        const now = new Date();
+        // Parse departure date/time in Maldives timezone for accurate comparison
+        const departureDateTime = parseMaldivesDateTime(
+          booking.departureDate,
+          booking.departureTime || '00:00'
+        );
         return (
-          departureDate > now &&
+          departureDateTime.getTime() > Date.now() &&
           (booking.status === 'confirmed' || booking.status === 'pending')
         );
       } else if (activeTab !== 'all' && booking.status !== activeTab) {
@@ -95,10 +99,16 @@ export default function AgentBookingsScreen() {
       switch (sortBy) {
         case 'upcoming':
           // Sort by departure date (soonest first) for upcoming bookings
-          return (
-            new Date(a.departureDate).getTime() -
-            new Date(b.departureDate).getTime()
+          // Parse in Maldives timezone for accurate sorting
+          const dateTimeA = parseMaldivesDateTime(
+            a.departureDate,
+            a.departureTime || '00:00'
           );
+          const dateTimeB = parseMaldivesDateTime(
+            b.departureDate,
+            b.departureTime || '00:00'
+          );
+          return dateTimeA.getTime() - dateTimeB.getTime();
         case 'amount':
           return b.discountedAmount - a.discountedAmount;
         case 'status':
@@ -131,10 +141,13 @@ export default function AgentBookingsScreen() {
 
       const filteredBookings = bookings.filter(booking => {
         if (activeTab === 'upcoming') {
-          const departureDate = new Date(booking.departureDate);
-          const now = new Date();
+          // Parse departure date/time in Maldives timezone for accurate comparison
+          const departureDateTime = parseMaldivesDateTime(
+            booking.departureDate,
+            booking.departureTime || '00:00'
+          );
           return (
-            departureDate > now &&
+            departureDateTime.getTime() > Date.now() &&
             (booking.status === 'confirmed' || booking.status === 'pending')
           );
         }
@@ -206,10 +219,13 @@ export default function AgentBookingsScreen() {
       label: 'Upcoming',
       count:
         bookings?.filter(b => {
-          const departureDate = new Date(b.departureDate);
-          const now = new Date();
+          // Parse departure date/time in Maldives timezone for accurate comparison
+          const departureDateTime = parseMaldivesDateTime(
+            b.departureDate,
+            b.departureTime || '00:00'
+          );
           return (
-            departureDate > now &&
+            departureDateTime.getTime() > Date.now() &&
             (b.status === 'confirmed' || b.status === 'pending')
           );
         }).length || 0,

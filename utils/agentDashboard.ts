@@ -4,6 +4,10 @@ import {
   calculateTotalRevenueAsync,
   type BookingForRevenue,
 } from './revenueCalculation';
+import {
+  parseMaldivesDateTime,
+  getMaldivesTimeComponents,
+} from './timezoneUtils';
 
 /**
  * Process and combine dashboard stats from different sources
@@ -201,21 +205,33 @@ export const calculatePerformanceMetrics = async (
 export const getUpcomingBookings = (bookings: any[] | null): any[] => {
   if (!bookings) return [];
 
-  const now = new Date();
-  const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const now = Date.now();
+  const nextWeekMs = now + 7 * 24 * 60 * 60 * 1000;
 
   return bookings
     .filter(booking => {
       if (booking.status !== 'confirmed' && booking.status !== 'pending')
         return false;
-      const departureDate = new Date(booking.departureDate);
-      return departureDate >= now && departureDate <= nextWeek;
+      // Parse departure date/time in Maldives timezone for accurate comparison
+      const departureDateTime = parseMaldivesDateTime(
+        booking.departureDate,
+        booking.departureTime || '00:00'
+      );
+      const departureMs = departureDateTime.getTime();
+      return departureMs >= now && departureMs <= nextWeekMs;
     })
-    .sort(
-      (a, b) =>
-        new Date(a.departureDate).getTime() -
-        new Date(b.departureDate).getTime()
-    );
+    .sort((a, b) => {
+      // Sort by departure datetime in Maldives timezone
+      const dateTimeA = parseMaldivesDateTime(
+        a.departureDate,
+        a.departureTime || '00:00'
+      );
+      const dateTimeB = parseMaldivesDateTime(
+        b.departureDate,
+        b.departureTime || '00:00'
+      );
+      return dateTimeA.getTime() - dateTimeB.getTime();
+    });
 };
 
 /**
@@ -376,29 +392,47 @@ export const getBookingTrends = (bookings: any[] | null): BookingTrends => {
     };
   }
 
+  // Get current time components in Maldives timezone
+  const maldivesTime = getMaldivesTimeComponents(new Date());
+
+  // Calculate week start (Sunday) in Maldives timezone
   const now = new Date();
-  const weekStart = new Date(now);
-  weekStart.setDate(now.getDate() - now.getDay());
-  weekStart.setHours(0, 0, 0, 0);
+  const dayOfWeek = new Date(
+    now.getTime() + 5 * 60 * 60 * 1000 // Adjust to Maldives UTC+5
+  ).getUTCDay();
 
-  const lastWeekStart = new Date(weekStart);
-  lastWeekStart.setDate(weekStart.getDate() - 7);
+  const weekStartMs = Date.now() - dayOfWeek * 24 * 60 * 60 * 1000;
+  const weekStart = new Date(weekStartMs);
+  weekStart.setUTCHours(0 - 5, 0, 0, 0); // Set to midnight in Maldives (UTC+5)
 
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+  const lastWeekStart = new Date(weekStart.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-  const thisWeek = bookings.filter(
-    b => new Date(b.bookingDate) >= weekStart
-  ).length;
+  // Calculate month boundaries in Maldives timezone
+  const monthStart = new Date(
+    Date.UTC(maldivesTime.year, maldivesTime.month - 1, 1, -5, 0, 0, 0)
+  );
+  const lastMonthStart = new Date(
+    Date.UTC(maldivesTime.year, maldivesTime.month - 2, 1, -5, 0, 0, 0)
+  );
+  const lastMonthEnd = new Date(
+    Date.UTC(maldivesTime.year, maldivesTime.month - 1, 0, 18, 59, 59, 999)
+  ); // End of last day
+
+  const thisWeek = bookings.filter(b => {
+    const bookingDate = new Date(b.bookingDate);
+    return bookingDate >= weekStart;
+  }).length;
+
   const lastWeek = bookings.filter(b => {
     const date = new Date(b.bookingDate);
     return date >= lastWeekStart && date < weekStart;
   }).length;
 
-  const thisMonth = bookings.filter(
-    b => new Date(b.bookingDate) >= monthStart
-  ).length;
+  const thisMonth = bookings.filter(b => {
+    const bookingDate = new Date(b.bookingDate);
+    return bookingDate >= monthStart;
+  }).length;
+
   const lastMonth = bookings.filter(b => {
     const date = new Date(b.bookingDate);
     return date >= lastMonthStart && date <= lastMonthEnd;

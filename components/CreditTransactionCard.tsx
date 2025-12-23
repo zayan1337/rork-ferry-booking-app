@@ -13,6 +13,7 @@ import { CreditTransaction } from '@/types/agent';
 import Colors from '@/constants/colors';
 import Card from './Card';
 import { formatCurrency } from '@/utils/agentFormatters';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 
 const { width: screenWidth } = Dimensions.get('window');
 const isTablet = screenWidth >= 768;
@@ -59,21 +60,15 @@ const CreditTransactionCard = React.memo<CreditTransactionCardProps>(
         if (transaction.date) {
           const fallbackDate = new Date(transaction.date);
           if (!isNaN(fallbackDate.getTime())) {
-            return fallbackDate.toLocaleDateString('en-US', {
-              year: 'numeric',
-              month: 'short',
-              day: 'numeric',
-            });
+            // Use Maldives timezone for consistent date display
+            return formatDateInMaldives(fallbackDate, 'short-date');
           }
         }
         return 'N/A';
       }
 
-      return date.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-      });
+      // Use Maldives timezone for consistent date display
+      return formatDateInMaldives(date, 'short-date');
     };
 
     const formatTime = (dateString: string | null | undefined) => {
@@ -87,19 +82,15 @@ const CreditTransactionCard = React.memo<CreditTransactionCardProps>(
         if (transaction.date) {
           const fallbackDate = new Date(transaction.date);
           if (!isNaN(fallbackDate.getTime())) {
-            return fallbackDate.toLocaleTimeString('en-US', {
-              hour: '2-digit',
-              minute: '2-digit',
-            });
+            // Use Maldives timezone for consistent time display
+            return formatDateInMaldives(fallbackDate, 'time');
           }
         }
         return 'N/A';
       }
 
-      return date.toLocaleTimeString('en-US', {
-        hour: '2-digit',
-        minute: '2-digit',
-      });
+      // Use Maldives timezone for consistent time display
+      return formatDateInMaldives(date, 'time');
     };
 
     const getTransactionTypeLabel = () => {

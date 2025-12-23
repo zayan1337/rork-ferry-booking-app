@@ -30,6 +30,7 @@ import Card from '@/components/Card';
 import SafeView from '@/components/SafeView';
 import { formatTimeAMPM, formatSimpleDate } from '@/utils/dateUtils';
 import { useAlertContext } from '@/components/AlertProvider';
+import { parseMaldivesDateTime } from '@/utils/timezoneUtils';
 
 export default function CaptainTabLayout() {
   const { signOut } = useAuthStore();
@@ -104,14 +105,15 @@ export default function CaptainTabLayout() {
       startSpin();
       const data = await captainStore.fetchSpecialAssistanceNotifications();
 
-      // Sort by upcoming first (travelDate + departureTime)
+      // Sort by upcoming first (travelDate + departureTime) using Maldives timezone
       const getTripSortTime = (n: any): number => {
-        const baseDate = new Date(n.travelDate);
-        const validBase = isNaN(baseDate.getTime()) ? new Date() : baseDate;
+        if (!n.travelDate) return Date.now();
+
+        // Parse departure time, handling various formats
+        let timeStr = '00:00';
         const dep = n.departureTime;
         if (dep) {
-          const depDate = new Date(dep);
-          if (!isNaN(depDate.getTime())) return depDate.getTime();
+          // Handle AM/PM format
           const m = String(dep).match(/^\s*(\d{1,2}):?(\d{2})\s*(AM|PM)?\s*$/i);
           if (m) {
             let h = parseInt(m[1], 10);
@@ -121,12 +123,14 @@ export default function CaptainTabLayout() {
               if (/PM/i.test(ampm) && h < 12) h += 12;
               if (/AM/i.test(ampm) && h === 12) h = 0;
             }
-            const d = new Date(validBase);
-            d.setHours(h, min, 0, 0);
-            return d.getTime();
+            timeStr = `${h.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`;
+          } else if (/^\d{2}:\d{2}/.test(dep)) {
+            timeStr = dep.substring(0, 5);
           }
         }
-        return validBase.getTime();
+
+        // Use Maldives timezone for proper sorting
+        return parseMaldivesDateTime(n.travelDate, timeStr).getTime();
       };
 
       const sorted = [...data].sort(

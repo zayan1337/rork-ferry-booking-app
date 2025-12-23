@@ -4,6 +4,10 @@ import type { TicketStoreState } from '@/types/booking';
 import type { Booking, BookingStatus } from '@/types';
 import type { ValidationResult } from '@/types/pages/booking';
 import { normalizeTime } from '@/utils/dateUtils';
+import {
+  formatDateInMaldives,
+  getMaldivesTodayString,
+} from '@/utils/timezoneUtils';
 
 interface TicketStoreActions {
   validateTicket: (bookingNumber: string) => Promise<ValidationResult>;
@@ -104,7 +108,7 @@ export const useTicketStore = create<TicketStore>((set, get) => ({
             agent_client_id: basicBooking.agent_client_id,
             trip_id: basicBooking.trip_id,
             // Default values when trip data is not available
-            travel_date: new Date().toISOString().split('T')[0],
+            travel_date: getMaldivesTodayString(),
             departure_time: '00:00',
             from_island_name: 'Unknown',
             from_island_zone: 'A',
@@ -505,22 +509,22 @@ export const useTicketStore = create<TicketStore>((set, get) => ({
         message = `Unable to verify travel date - ticket validation incomplete`;
         isValid = false;
       } else if (ticketDate < today) {
-        message = `Ticket has expired (travel date was ${departureDate.toLocaleDateString()})`;
+        message = `Ticket has expired (travel date was ${formatDateInMaldives(departureDate, 'short-date')})`;
         isValid = false;
       } else if (ticketDate.getTime() === today.getTime()) {
         if (isCheckedIn) {
           message = `Ticket already used for travel today`;
           isValid = false;
         } else {
-          message = `Valid ticket for travel today (${departureDate.toLocaleDateString()})`;
+          message = `Valid ticket for travel today (${formatDateInMaldives(departureDate, 'short-date')})`;
           isValid = true;
         }
       } else if (ticketDate > today) {
         if (isCheckedIn) {
-          message = `Ticket already used for travel (future date: ${departureDate.toLocaleDateString()})`;
+          message = `Ticket already used for travel (future date: ${formatDateInMaldives(departureDate, 'short-date')})`;
           isValid = false;
         } else {
-          message = `Valid ticket for travel on ${departureDate.toLocaleDateString()}`;
+          message = `Valid ticket for travel on ${formatDateInMaldives(departureDate, 'short-date')}`;
           isValid = true;
         }
       } else {

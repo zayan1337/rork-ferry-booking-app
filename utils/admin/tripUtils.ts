@@ -1,4 +1,8 @@
 import { AdminManagement } from '@/types';
+import {
+  formatDateInMaldives,
+  getMaldivesTodayString,
+} from '@/utils/timezoneUtils';
 
 type Trip = AdminManagement.Trip;
 type TripFormData = AdminManagement.TripFormData;
@@ -305,7 +309,7 @@ export const calculateTripStats = (trips: Trip[]): TripStats => {
   const delayed = activeTrips.filter(trip => trip.status === 'delayed').length;
 
   // Today's trips (excluding cancelled)
-  const today = new Date().toISOString().split('T')[0];
+  const today = getMaldivesTodayString();
   const todayTrips = activeTrips.filter(
     trip => trip.travel_date === today
   ).length;
@@ -721,7 +725,7 @@ export const exportTripData = (trips: Trip[]) => {
         trip.fare_multiplier *
         (trip.confirmed_bookings || trip.booked_seats || 0)
     ),
-    created: new Date(trip.created_at).toLocaleDateString(),
+    created: formatDateInMaldives(trip.created_at, 'short-date'),
     id: trip.id,
   }));
 };
@@ -952,12 +956,7 @@ export const getWeekendOnly = (): number[] => {
 
 export const formatDateForDisplay = (dateString: string): string => {
   try {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      weekday: 'short',
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
+    return formatDateInMaldives(dateString, 'date');
   } catch {
     return dateString;
   }

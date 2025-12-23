@@ -8,6 +8,10 @@ import {
   findRoutesServingSegment,
 } from '@/utils/segmentBookingUtils';
 import { supabase } from '@/utils/supabase';
+import {
+  formatDateInMaldives,
+  parseMaldivesDateTime,
+} from '@/utils/timezoneUtils';
 
 export const useQuickBooking = () => {
   const [quickBookingState, setQuickBookingState] = useState<QuickBookingState>(
@@ -133,19 +137,20 @@ export const useQuickBooking = () => {
         selectedDate
       );
 
-      // Filter out trips that have already departed
-      const currentTime = new Date();
+      // Filter out trips that have already departed (using Maldives timezone)
+      const currentTime = Date.now();
       const futureTrips = trips.filter(trip => {
-        const tripDateTime = new Date(
-          `${trip.travel_date}T${trip.departure_time}`
+        const tripDateTime = parseMaldivesDateTime(
+          trip.travel_date,
+          trip.departure_time
         );
-        return tripDateTime > currentTime;
+        return tripDateTime.getTime() > currentTime;
       });
 
       if (futureTrips.length === 0) {
         setQuickBookingState(prev => ({
           ...prev,
-          errorMessage: `No ferry trips available from ${selectedFromIsland} to ${selectedToIsland} on ${new Date(selectedDate).toLocaleDateString()}. Please select a different date or destination.`,
+          errorMessage: `No ferry trips available from ${selectedFromIsland} to ${selectedToIsland} on ${formatDateInMaldives(selectedDate, 'short-date')}. Please select a different date or destination.`,
         }));
         return false;
       }

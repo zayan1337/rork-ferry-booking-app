@@ -5,6 +5,7 @@ import {
   TripFilters,
   Route,
 } from '@/types/operations';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 
 /**
  * Validates trip form data
@@ -101,11 +102,7 @@ export const minutesToTime = (minutes: number): string => {
  * Formats trip time for display
  */
 export const formatTripTime = (time: string): string => {
-  return new Date(`2000-01-01T${time}`).toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true,
-  });
+  return formatDateInMaldives(`2000-01-01T${time}`, 'time');
 };
 
 /**

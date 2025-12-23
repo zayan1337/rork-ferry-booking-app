@@ -11,6 +11,7 @@ import {
 } from 'lucide-react-native';
 import { colors } from '@/constants/adminColors';
 import { WalletTransaction, Payment } from '@/types/admin/finance';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 
 interface TransactionListProps {
   transactions: WalletTransaction[];
@@ -107,7 +108,7 @@ export default function TransactionList({
                 <View style={styles.transactionMeta}>
                   <Clock size={12} color={colors.textSecondary} />
                   <Text style={styles.transactionDate}>
-                    {new Date(item.created_at).toLocaleString()}
+                    {formatDateInMaldives(item.created_at, 'datetime')}
                   </Text>
                 </View>
               </View>
@@ -158,7 +159,7 @@ export default function TransactionList({
                 <View style={styles.paymentMeta}>
                   <Clock size={12} color={colors.textSecondary} />
                   <Text style={styles.paymentDate}>
-                    {new Date(item.created_at).toLocaleString()}
+                    {formatDateInMaldives(item.created_at, 'datetime')}
                   </Text>
                 </View>
               </View>

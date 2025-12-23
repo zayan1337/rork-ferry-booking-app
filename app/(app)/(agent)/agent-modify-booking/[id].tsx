@@ -31,6 +31,7 @@ import {
 } from '@/utils/bookingUtils';
 import { usePaymentSessionStore } from '@/store/paymentSessionStore';
 import { formatCurrency } from '@/utils/agentFormatters';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 import Colors from '@/constants/colors';
 import { Seat } from '@/types';
 import { useAlertContext } from '@/components/AlertProvider';
@@ -916,7 +917,7 @@ export default function AgentModifyBookingScreen() {
                     <Text style={styles.noTripsTitle}>No Trips Available</Text>
                     <Text style={styles.noTripsText}>
                       No trips available for this route on{' '}
-                      {new Date(newDate).toLocaleDateString()}.{'\n\n'}
+                      {formatDateInMaldives(newDate, 'short-date')}.{'\n\n'}
                       Please try selecting a different date.
                     </Text>
                   </View>

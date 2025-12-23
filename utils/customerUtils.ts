@@ -5,6 +5,10 @@ import type {
 } from '@/types/customer';
 import type { Seat } from '@/types';
 import { DATE_GENERATION } from '@/constants/customer';
+import {
+  formatDateInMaldives,
+  getMaldivesTimeComponents,
+} from './timezoneUtils';
 
 /**
  * Transform Supabase seats data to match our app's Seat interface
@@ -23,27 +27,57 @@ export const transformSeatsData = (seatsData: SupabaseSeat[]): Seat[] => {
 };
 
 /**
- * Generate date options for the next N days
+ * Generate date options for the next N days.
+ * Uses Maldives timezone to ensure correct date display.
  */
 export const generateDateOptions = (
   daysAhead: number = DATE_GENERATION.DAYS_AHEAD
 ): DateOption[] => {
   const dates: DateOption[] = [];
-  const today = new Date();
+  const now = new Date();
+
+  // Month names for fallback formatting
+  const monthNames = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   for (let i = 0; i < daysAhead; i++) {
-    const date = new Date(today);
-    date.setDate(today.getDate() + i);
+    // Calculate date by adding i days to current time
+    const date = new Date(now.getTime() + i * 24 * 60 * 60 * 1000);
 
     const isToday = i === 0;
     const isTomorrow = i === 1;
 
+    // Format in Maldives timezone for consistency using safe functions
+    const dateString = formatDateInMaldives(date, 'YYYY-MM-DD');
+    const components = getMaldivesTimeComponents(date);
+
+    // Calculate day of week from the date components
+    const tempDate = new Date(
+      components.year,
+      components.month - 1,
+      components.day
+    );
+    const dayOfWeek = tempDate.getDay();
+
     dates.push({
-      dateString: date.toISOString().split('T')[0],
-      day: date.getDate(),
-      month: date.toLocaleString('default', { month: 'short' }),
-      year: date.getFullYear(),
-      dayName: date.toLocaleString('default', { weekday: 'short' }),
+      dateString,
+      day: components.day,
+      month: monthNames[components.month - 1],
+      year: components.year,
+      dayName: dayNames[dayOfWeek],
       isToday,
       isTomorrow,
     });
@@ -53,26 +87,47 @@ export const generateDateOptions = (
 };
 
 /**
- * Format date for display
+ * Format date for display.
+ * Uses Maldives timezone for consistent display.
  */
 export const formatDisplayDate = (dateString: string): string => {
-  return new Date(dateString).toLocaleDateString('en-US', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
+  if (!dateString) return '';
+  return formatDateInMaldives(dateString, 'short-date');
 };
 
 /**
- * Format date for profile display
+ * Format date for profile display.
+ * Uses Maldives timezone for consistent display.
  */
 export const formatProfileDate = (dateString: string): string => {
-  const date = new Date(dateString);
-  return date.toLocaleDateString('en-US', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
+  if (!dateString) return '';
+
+  // For date of birth, we treat it as a date-only value in Maldives timezone
+  // Add noon time to avoid date boundary issues
+  const dateToFormat = dateString.includes('T')
+    ? dateString
+    : dateString + 'T12:00:00+05:00';
+  const date = new Date(dateToFormat);
+
+  // Use safe formatting that works on all platforms
+  const components = getMaldivesTimeComponents(date);
+
+  const monthNames = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ];
+
+  return `${monthNames[components.month - 1]} ${components.day}, ${components.year}`;
 };
 
 /**

@@ -14,6 +14,7 @@ import { Calendar } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import Button from './Button';
 import { DatePickerProps } from '@/types/components';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 
 const DatePicker: React.FC<DatePickerProps> = ({
   label,
@@ -49,9 +50,10 @@ const DatePicker: React.FC<DatePickerProps> = ({
       dates.push({
         dateString: date.toISOString().split('T')[0],
         day: date.getDate(),
-        month: date.toLocaleString('default', { month: 'short' }),
+        // Use Maldives timezone for consistent month/day display
+        month: formatDateInMaldives(date, 'month-short'),
         year: date.getFullYear(),
-        dayName: date.toLocaleString('default', { weekday: 'short' }),
+        dayName: formatDateInMaldives(date, 'weekday-short'),
       });
     }
 
@@ -75,13 +77,8 @@ const DatePicker: React.FC<DatePickerProps> = ({
   };
 
   const formatDisplayDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      weekday: 'short',
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    });
+    // Use Maldives timezone for consistent date display
+    return formatDateInMaldives(dateString, 'date');
   };
 
   return (

@@ -56,5 +56,27 @@ export {
 export * from './tripUtils';
 export * from './islandUtils';
 
-// User management utilities
-export * from './admin/userManagementUtils';
+// User management utilities with explicit re-exports to avoid conflicts
+export {
+  formatUserRole,
+  formatUserStatus,
+  getUserStatusColor,
+  getUserRoleIcon,
+  formatCurrency as userManagementFormatCurrency,
+  formatDate as userManagementFormatDate,
+  formatDateTime as userManagementFormatDateTime,
+  calculateUserAge,
+  isValidEmail,
+  isValidPhoneNumber,
+  getUserActivityLevel,
+  getUserActivityColor,
+  formatUserName,
+  getUserInitials,
+  hasRecentActivity,
+  getUserEngagementScore,
+  getUserEngagementLevel,
+  formatUserDisplayName,
+  formatActivityLevel,
+  formatEngagementScore,
+  calculateUserAgeFromProfile,
+} from './admin/userManagementUtils';

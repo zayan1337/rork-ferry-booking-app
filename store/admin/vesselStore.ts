@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '@/utils/supabase';
 import { AdminManagement } from '@/types';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 import {
   generateFerrySeatLayout,
   calculateOptimalLayout,
@@ -775,7 +776,7 @@ export const useVesselStore = create<VesselStoreState & VesselStoreActions>(
           }
 
           layoutData = {
-            layout_name: `Custom ${vesselType.charAt(0).toUpperCase() + vesselType.slice(1)} Layout - ${new Date().toLocaleDateString()}`,
+            layout_name: `Custom ${vesselType.charAt(0).toUpperCase() + vesselType.slice(1)} Layout - ${formatDateInMaldives(new Date(), 'short-date')}`,
             layout_data: {
               rows: layoutConfig.rows || layoutConfig.floors[0].rows,
               columns: layoutConfig.columns || layoutConfig.floors[0].columns,
@@ -816,7 +817,7 @@ export const useVesselStore = create<VesselStoreState & VesselStoreActions>(
           });
 
           layoutData = {
-            layout_name: `${vesselType.charAt(0).toUpperCase() + vesselType.slice(1)} Layout - ${new Date().toLocaleDateString()}`,
+            layout_name: `${vesselType.charAt(0).toUpperCase() + vesselType.slice(1)} Layout - ${formatDateInMaldives(new Date(), 'short-date')}`,
             layout_data: {
               rows: ferryLayout.floors.reduce(
                 (sum, floor) => sum + floor.rows,

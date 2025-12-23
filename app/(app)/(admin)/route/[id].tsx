@@ -41,6 +41,7 @@ import {
 } from 'lucide-react-native';
 import Button from '@/components/admin/Button';
 import LoadingSpinner from '@/components/admin/LoadingSpinner';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -722,11 +723,7 @@ export default function RouteDetailsScreen() {
               <View style={styles.systemRow}>
                 <Text style={styles.systemLabel}>Created</Text>
                 <Text style={styles.systemValue}>
-                  {new Date(routeData.created_at).toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric',
-                  })}
+                  {formatDateInMaldives(routeData.created_at, 'short-date')}
                 </Text>
               </View>
 

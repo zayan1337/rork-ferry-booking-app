@@ -15,6 +15,7 @@ import { Trip } from '@/types/operations';
 import Button from '@/components/admin/Button';
 import Input from '@/components/Input';
 import Dropdown from '@/components/Dropdown';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 import {
   X,
   Calendar,
@@ -345,7 +346,7 @@ export default function BulkTripOperations({
                       {trip.routeName || 'Unknown Route'}
                     </Text>
                     <Text style={styles.tripTime}>
-                      {new Date(trip.travel_date).toLocaleDateString()} at{' '}
+                      {formatDateInMaldives(trip.travel_date, 'short-date')} at{' '}
                       {trip.departure_time}
                     </Text>
                   </View>

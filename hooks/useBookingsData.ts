@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useAdminStore } from '@/store/admin/adminStore';
 import { FilterStatus, BookingsFilterState } from '@/types/admin/dashboard';
+import { getMaldivesTodayString } from '@/utils/timezoneUtils';
 
 export const useBookingsData = () => {
   const {
@@ -65,10 +66,11 @@ export const useBookingsData = () => {
 
   // Enhanced statistics
   const stats = useMemo(() => {
-    const today = new Date().toISOString().split('T')[0];
-    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000)
-      .toISOString()
-      .split('T')[0];
+    // Use Maldives timezone for today/yesterday calculations
+    const today = getMaldivesTodayString();
+    const todayDate = new Date(today + 'T00:00:00');
+    todayDate.setDate(todayDate.getDate() - 1);
+    const yesterday = todayDate.toISOString().split('T')[0];
 
     const todayBookings = bookings.filter(b => b.date === today);
     const yesterdayBookings = bookings.filter(b => b.date === yesterday);

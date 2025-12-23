@@ -4,6 +4,7 @@ import { colors } from '@/constants/adminColors';
 import { Mail } from 'lucide-react-native';
 import StatusBadge from './StatusBadge';
 import { UserProfile } from '@/types/userManagement';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 
 interface UserItemProps {
   user: UserProfile;
@@ -31,7 +32,8 @@ const UserItem = memo(({ user, onPress }: UserItemProps) => {
   }, [user.role]);
 
   const formattedDate = useMemo(() => {
-    return new Date(user.created_at).toLocaleDateString();
+    // Use Maldives timezone for consistent date display
+    return formatDateInMaldives(user.created_at, 'short-date');
   }, [user.created_at]);
 
   return (

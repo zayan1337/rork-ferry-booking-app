@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import type { Payment } from '@/types/admin/finance';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 import {
   CreditCard,
   FileText,
@@ -200,11 +201,11 @@ function PaymentDetailCard({
           <InfoRow label='Booking ID' value={payment.booking_id} />
           <InfoRow
             label='Created At'
-            value={new Date(payment.created_at).toLocaleString()}
+            value={formatDateInMaldives(payment.created_at, 'datetime')}
           />
           <InfoRow
             label='Updated At'
-            value={new Date(payment.updated_at).toLocaleString()}
+            value={formatDateInMaldives(payment.updated_at, 'datetime')}
           />
         </View>
       </View>

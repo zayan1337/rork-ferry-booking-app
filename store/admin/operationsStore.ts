@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '@/utils/supabase';
+import { getMaldivesTodayString } from '@/utils/timezoneUtils';
 import {
   OperationsRoute,
   OperationsTrip,
@@ -261,11 +262,11 @@ export const useOperationsStore = create<OperationsStore>((set, get) => ({
           todayTrips = statsData.today_trips || 0;
         } else {
           // Fallback to manual calculation
-          const today = new Date().toISOString().split('T')[0];
+          const today = getMaldivesTodayString();
           todayTrips = trips.filter(t => t.travel_date === today).length;
         }
       } catch (err) {
-        const today = new Date().toISOString().split('T')[0];
+        const today = getMaldivesTodayString();
         todayTrips = trips.filter(t => t.travel_date === today).length;
       }
 
@@ -338,7 +339,7 @@ export const useOperationsStore = create<OperationsStore>((set, get) => ({
     set(state => ({ loading: { ...state.loading, schedule: true } }));
     try {
       // Use operations_trips_view for today's data (includes travel_date)
-      const today = new Date().toISOString().split('T')[0];
+      const today = getMaldivesTodayString();
       const { data, error } = await supabase
         .from('operations_trips_view')
         .select('*')
@@ -357,7 +358,7 @@ export const useOperationsStore = create<OperationsStore>((set, get) => ({
       console.error('Error in fetchTodaySchedule:', error);
       // Fallback to regular trips query if view doesn't exist
       try {
-        const today = new Date().toISOString().split('T')[0];
+        const today = getMaldivesTodayString();
         const { data: fallbackData, error: fallbackError } = await supabase
           .from('operations_trips_view')
           .select('*')
@@ -619,7 +620,7 @@ export const useOperationsStore = create<OperationsStore>((set, get) => ({
       const totalVessels = vessels.length;
 
       // Today's trips
-      const today = new Date().toISOString().split('T')[0];
+      const today = getMaldivesTodayString();
       const todayTrips = trips.filter(
         t => t.travel_date === today && t.is_active
       ).length;

@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import { useUserStore } from '@/store/admin/userStore';
 import { UserProfile, UserStats, UserFilters } from '@/types/userManagement';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 
 // ============================================================================
 // USER MANAGEMENT HOOK INTERFACE
@@ -266,11 +267,8 @@ export const useUserManagement = (
   }, []);
 
   const formatDate = useCallback((date: string) => {
-    return new Date(date).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
+    // Use Maldives timezone for consistent date display
+    return formatDateInMaldives(date, 'short-date');
   }, []);
 
   // ========================================================================

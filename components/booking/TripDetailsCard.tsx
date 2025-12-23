@@ -4,6 +4,7 @@ import { Calendar, Clock, Users, Ship } from 'lucide-react-native';
 import Card from '@/components/Card';
 import Colors from '@/constants/colors';
 import { formatTimeAMPM } from '@/utils/dateUtils';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 
 interface TripDetailsCardProps {
   departureDate: string;
@@ -48,13 +49,8 @@ const TripDetailsCard: React.FC<TripDetailsCardProps> = ({
   returnDropoffName,
 }) => {
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      weekday: 'short',
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    });
+    // Use Maldives timezone for consistent date display
+    return formatDateInMaldives(dateString, 'date');
   };
 
   const getDefaultStatusColor = (status: string) => {

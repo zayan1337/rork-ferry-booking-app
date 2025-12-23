@@ -3,6 +3,7 @@ import { StyleSheet, Text, Pressable, View } from 'react-native';
 import { colors } from '@/constants/adminColors';
 import { AlertCircle, Calendar, CreditCard, Ship } from 'lucide-react-native';
 import { Alert } from '@/types/admin';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 
 interface AlertItemProps {
   alert: Alert;
@@ -37,8 +38,8 @@ export default function AlertItem({ alert, onPress }: AlertItemProps) {
   };
 
   const formatTime = (timestamp: string) => {
-    const date = new Date(timestamp);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    // Use Maldives timezone for consistent time display
+    return formatDateInMaldives(timestamp, 'time');
   };
 
   return (

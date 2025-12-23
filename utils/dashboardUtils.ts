@@ -1,4 +1,9 @@
 import { Dimensions } from 'react-native';
+import {
+  formatDateInMaldives,
+  getMaldivesTodayString,
+  getMaldivesTimeComponents,
+} from '@/utils/timezoneUtils';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -34,17 +39,11 @@ export const getInitials = (name: string): string => {
 };
 
 export const formatDate = (date: string | Date): string => {
-  const d = new Date(date);
-  return d.toLocaleDateString();
+  return formatDateInMaldives(date, 'short-date');
 };
 
 export const formatTime = (date: string | Date): string => {
-  const d = new Date(date);
-  return d.toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true,
-  });
+  return formatDateInMaldives(date, 'time');
 };
 
 export const formatCurrency = (amount: number, currency = 'MVR'): string => {
@@ -60,11 +59,13 @@ export const calculatePercentageChange = (
 };
 
 export const getTodayString = (): string => {
-  return new Date().toISOString().split('T')[0];
+  return getMaldivesTodayString();
 };
 
 export const getYesterdayString = (): string => {
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-  return yesterday.toISOString().split('T')[0];
+  const maldivesTime = getMaldivesTimeComponents(new Date());
+  const yesterday = new Date(
+    Date.UTC(maldivesTime.year, maldivesTime.month - 1, maldivesTime.day - 1)
+  );
+  return formatDateInMaldives(yesterday, 'YYYY-MM-DD');
 };

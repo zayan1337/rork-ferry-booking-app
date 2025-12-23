@@ -37,6 +37,7 @@ import {
 import Button from '@/components/admin/Button';
 import LoadingSpinner from '@/components/admin/LoadingSpinner';
 import { useAlertContext } from '@/components/AlertProvider';
+import { formatDateInMaldives, parseMaldivesDate } from '@/utils/timezoneUtils';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -166,24 +167,14 @@ export default function TermDetailScreen() {
 
   const formatDate = (dateString: string) => {
     if (!dateString) return 'N/A';
-    const options: Intl.DateTimeFormatOptions = {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    };
-    return new Date(dateString).toLocaleDateString(undefined, options);
+    // Use Maldives timezone for consistent date display
+    return formatDateInMaldives(dateString, 'full');
   };
 
   const formatDateTime = (dateString: string) => {
-    const date = new Date(dateString);
-    return new Intl.DateTimeFormat('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    }).format(date);
+    if (!dateString) return 'N/A';
+    // Use Maldives timezone for consistent datetime display
+    return formatDateInMaldives(dateString, 'datetime');
   };
 
   const getTermsStatus = (terms: TermsAndConditions) => {
@@ -196,8 +187,9 @@ export default function TermDetailScreen() {
       };
     }
 
-    const now = new Date();
-    const effective = new Date(terms.effective_date);
+    // Use Maldives timezone for date comparison
+    const now = Date.now();
+    const effective = parseMaldivesDate(terms.effective_date);
 
     if (!terms.is_active) {
       return {
@@ -208,7 +200,7 @@ export default function TermDetailScreen() {
       };
     }
 
-    if (effective <= now) {
+    if (effective.getTime() <= now) {
       return {
         status: 'Current',
         color: colors.success,

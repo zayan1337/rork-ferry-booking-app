@@ -15,6 +15,7 @@ import {
   CheckCircle,
 } from 'lucide-react-native';
 import Card from './Card';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 
 interface ClientCardProps {
   client: Client;
@@ -85,12 +86,8 @@ const formatCurrency = (amount: number = 0) => {
 // Helper function to format date
 const formatDate = (dateString?: string) => {
   if (!dateString) return 'Never';
-  const date = new Date(dateString);
-  return date.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
+  // Use Maldives timezone for consistent date display
+  return formatDateInMaldives(dateString, 'short-date');
 };
 
 const ClientCard = React.memo<ClientCardProps>(

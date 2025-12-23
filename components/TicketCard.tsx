@@ -6,16 +6,12 @@ import { TicketCardProps } from '@/types/components';
 import Colors from '@/constants/colors';
 import Card from './Card';
 import { formatTimeAMPM } from '@/utils/dateUtils';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 
 const TicketCard: React.FC<TicketCardProps> = ({ booking }) => {
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      weekday: 'short',
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    });
+    // Use Maldives timezone for consistent date display
+    return formatDateInMaldives(dateString, 'date');
   };
 
   return (

@@ -37,6 +37,7 @@ import {
 import Button from '@/components/admin/Button';
 import LoadingSpinner from '@/components/admin/LoadingSpinner';
 import { useAlertContext } from '@/components/AlertProvider';
+import { formatDateInMaldives, parseMaldivesDate } from '@/utils/timezoneUtils';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -152,24 +153,14 @@ export default function PromotionDetailScreen() {
 
   const formatDate = (dateString: string) => {
     if (!dateString) return 'N/A';
-    const options: Intl.DateTimeFormatOptions = {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    };
-    return new Date(dateString).toLocaleDateString(undefined, options);
+    // Use Maldives timezone for consistent date display
+    return formatDateInMaldives(dateString, 'full');
   };
 
   const formatDateTime = (dateString: string) => {
-    const date = new Date(dateString);
-    return new Intl.DateTimeFormat('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    }).format(date);
+    if (!dateString) return 'N/A';
+    // Use Maldives timezone for consistent datetime display
+    return formatDateInMaldives(dateString, 'datetime');
   };
 
   const getDurationDays = () => {
@@ -193,9 +184,11 @@ export default function PromotionDetailScreen() {
       };
     }
 
-    const now = new Date();
-    const start = new Date(promotion.start_date);
-    const end = new Date(promotion.end_date);
+    // Parse dates in Maldives timezone for accurate comparison
+    const nowMs = Date.now();
+    const startMs = parseMaldivesDate(promotion.start_date).getTime();
+    const endMs =
+      parseMaldivesDate(promotion.end_date).getTime() + 24 * 60 * 60 * 1000 - 1; // End of day
 
     if (!promotion.is_active) {
       return {
@@ -206,7 +199,7 @@ export default function PromotionDetailScreen() {
       };
     }
 
-    if (start <= now && end >= now) {
+    if (startMs <= nowMs && endMs >= nowMs) {
       return {
         status: 'Current',
         color: colors.success,
@@ -215,7 +208,7 @@ export default function PromotionDetailScreen() {
       };
     }
 
-    if (start > now) {
+    if (startMs > nowMs) {
       return {
         status: 'Upcoming',
         color: colors.warning,

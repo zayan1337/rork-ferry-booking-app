@@ -1,4 +1,5 @@
 import { AdminManagement } from '@/types';
+import { formatDateInMaldives } from '@/utils/timezoneUtils';
 
 type Route = AdminManagement.Route;
 type RouteFormData = AdminManagement.RouteFormData;
@@ -610,7 +611,7 @@ export const exportRouteData = (routes: Route[]) => {
     trips_30d: route.total_trips_30d,
     revenue_30d: formatCurrency(route.total_revenue_30d),
     occupancy: formatPercentage(route.average_occupancy_30d),
-    created: new Date(route.created_at).toLocaleDateString(),
+    created: formatDateInMaldives(route.created_at, 'short-date'),
     id: route.id,
   }));
 };
