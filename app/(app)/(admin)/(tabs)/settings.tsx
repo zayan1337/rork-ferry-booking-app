@@ -26,6 +26,7 @@ import {
   HelpCircle,
   FileEdit,
   Bell,
+  Mail,
 } from 'lucide-react-native';
 import {
   useSettingsData,
@@ -48,6 +49,7 @@ import {
   ZonesTab,
   FAQTab,
   ContentTab,
+  EmailCampaignsTab,
 } from '@/components/admin/settings';
 import { SystemSettingsModal } from '@/components/admin/settings/modals';
 import { SettingsTab } from '@/types/settings';
@@ -146,6 +148,7 @@ export default function SettingsScreen() {
         'zones',
         'faq',
         'content',
+        'email',
       ];
       if ((validTabs as string[]).includes(t)) {
         setActiveTab(t as SettingsTab);
@@ -252,6 +255,12 @@ export default function SettingsScreen() {
         icon: Activity,
         category: 'Monitoring',
       },
+      {
+        key: 'email',
+        label: 'Email',
+        icon: Mail,
+        category: 'Communications',
+      },
       // {
       //   key: 'reports',
       //   label: 'Reports',
@@ -348,13 +357,28 @@ export default function SettingsScreen() {
           />
         );
 
+      case 'email':
+        return (
+          <EmailCampaignsTab
+            isActive={activeTab === 'email'}
+            searchQuery={searchQuery}
+          />
+        );
+
       default:
         return null;
     }
   };
 
   // Tabs that use FlatList internally and should not be wrapped in ScrollView
-  const flatListTabs = ['islands', 'zones', 'faq', 'content', 'alerts'];
+  const flatListTabs = [
+    'islands',
+    'zones',
+    'faq',
+    'content',
+    'alerts',
+    'email',
+  ];
   const useScrollView = !flatListTabs.includes(activeTab);
 
   // Optimized scroll to active tab - only when tab changes and user isn't manually scrolling

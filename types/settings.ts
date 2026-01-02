@@ -7,7 +7,8 @@ export type SettingsTab =
   | 'islands'
   | 'zones'
   | 'faq'
-  | 'content';
+  | 'content'
+  | 'email';
 
 export type PermissionView = 'users' | 'roles' | 'permissions';
 

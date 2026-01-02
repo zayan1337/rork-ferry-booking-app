@@ -7,3 +7,4 @@ export { default as IslandsTab } from './IslandsTab';
 export { default as ZonesTab } from './ZonesTab';
 export { default as FAQTab } from './FAQTab';
 export { default as ContentTab } from './ContentTab';
+export { default as EmailCampaignsTab } from './EmailCampaignsTab';
