@@ -123,10 +123,20 @@ const EmailCampaignsTab: React.FC<EmailCampaignsTabProps> = ({
     router.push(`../email-template/${templateId}` as any);
   };
 
+  // Get correct recipient count from campaign
+  const getRecipientCount = (campaign: EmailCampaign) => {
+    const criteria = campaign.target_criteria;
+    if (criteria?.selectedUserIds && criteria.selectedUserIds.length > 0) {
+      return criteria.selectedUserIds.length;
+    }
+    return campaign.total_recipients;
+  };
+
   const handleSendCampaign = async (campaign: EmailCampaign) => {
+    const recipientCount = getRecipientCount(campaign);
     showConfirmation(
       'Send Campaign',
-      `Are you sure you want to send "${campaign.name}" to ${campaign.total_recipients} recipients?`,
+      `Are you sure you want to send "${campaign.name}" to ${recipientCount} recipient${recipientCount !== 1 ? 's' : ''}?`,
       async () => {
         const success = await sendCampaign(campaign.id);
         if (success) {
@@ -332,9 +342,10 @@ const EmailCampaignsTab: React.FC<EmailCampaignsTabProps> = ({
   );
 
   const renderCampaignItem = ({ item }: { item: EmailCampaign }) => {
+    const recipientCount = getRecipientCount(item);
     const deliveryRate =
-      item.total_recipients > 0
-        ? Math.round((item.sent_count / item.total_recipients) * 100)
+      recipientCount > 0
+        ? Math.round((item.sent_count / recipientCount) * 100)
         : 0;
     const openRate =
       item.sent_count > 0
@@ -404,7 +415,7 @@ const EmailCampaignsTab: React.FC<EmailCampaignsTabProps> = ({
           <View style={styles.statItem}>
             <Users size={14} color={colors.primary} />
             <Text style={styles.statText}>
-              {item.total_recipients} recipients
+              {recipientCount} recipient{recipientCount !== 1 ? 's' : ''}
             </Text>
           </View>
           <View style={styles.statItem}>
@@ -531,6 +542,15 @@ const EmailCampaignsTab: React.FC<EmailCampaignsTabProps> = ({
         >
           <Send size={14} color={colors.primary} />
           <Text style={styles.templateActionText}>Use Template</Text>
+        </Pressable>
+        <Pressable
+          style={styles.templateActionButton}
+          onPress={() => router.push(`/email-template/edit/${item.id}` as any)}
+        >
+          <Edit size={14} color={colors.warning} />
+          <Text style={[styles.templateActionText, { color: colors.warning }]}>
+            Edit
+          </Text>
         </Pressable>
         <Pressable
           style={styles.templateActionButton}

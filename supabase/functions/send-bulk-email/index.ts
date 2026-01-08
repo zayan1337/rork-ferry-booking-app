@@ -306,8 +306,34 @@ serve(async req => {
     let recipients: Recipient[] = [];
     const criteria = campaign.target_criteria;
 
-    if (criteria.allUsers) {
-      // Get all active users
+    // PRIORITY 1: If specific users are selected (individual selection mode)
+    if (criteria.selectedUserIds && criteria.selectedUserIds.length > 0) {
+      console.log(
+        `📋 Using selectedUserIds: ${criteria.selectedUserIds.length} users`
+      );
+
+      const { data: selectedUsers, error: selectedError } = await supabase
+        .from('user_profiles')
+        .select('id, email, full_name')
+        .in('id', criteria.selectedUserIds)
+        .not('email', 'is', null);
+
+      if (selectedError) {
+        throw new Error(
+          `Failed to fetch selected users: ${selectedError.message}`
+        );
+      }
+
+      recipients = (selectedUsers || []).map(u => ({
+        user_id: u.id,
+        email: u.email,
+        full_name: u.full_name || 'Valued Customer',
+      }));
+    }
+    // PRIORITY 2: All users
+    else if (criteria.allUsers) {
+      console.log('📋 Using allUsers mode');
+
       const { data: users, error: usersError } = await supabase
         .from('user_profiles')
         .select('id, email, full_name')
@@ -323,34 +349,43 @@ serve(async req => {
         email: u.email,
         full_name: u.full_name || 'Valued Customer',
       }));
-    } else {
-      // Use the database function to get filtered recipients
+    }
+    // PRIORITY 3: Filter by roles
+    else if (criteria.roles && criteria.roles.length > 0) {
+      console.log(`📋 Using roles filter: ${criteria.roles.join(', ')}`);
+
+      const { data: roleUsers, error: roleError } = await supabase
+        .from('user_profiles')
+        .select('id, email, full_name')
+        .eq('is_active', true)
+        .not('email', 'is', null)
+        .in('role', criteria.roles);
+
+      if (roleError) {
+        throw new Error(`Failed to fetch users by role: ${roleError.message}`);
+      }
+
+      recipients = (roleUsers || []).map(u => ({
+        user_id: u.id,
+        email: u.email,
+        full_name: u.full_name || 'Valued Customer',
+      }));
+    }
+    // PRIORITY 4: Try database function for complex criteria
+    else {
+      console.log('📋 Using complex criteria via RPC');
+
       const { data: filteredUsers, error: filterError } = await supabase.rpc(
         'get_campaign_recipients',
         { criteria }
       );
 
       if (filterError) {
-        // Fallback: filter by roles only
-        let query = supabase
-          .from('user_profiles')
-          .select('id, email, full_name')
-          .eq('is_active', true)
-          .not('email', 'is', null);
-
-        if (criteria.roles && criteria.roles.length > 0) {
-          query = query.in('role', criteria.roles);
-        }
-
-        const { data: fallbackUsers } = await query;
-        recipients = (fallbackUsers || []).map(u => ({
-          user_id: u.id,
-          email: u.email,
-          full_name: u.full_name || 'Valued Customer',
-        }));
+        console.error('RPC error, no recipients:', filterError);
+        recipients = [];
       } else {
         recipients = (filteredUsers || []).map((u: any) => ({
-          user_id: u.user_id,
+          user_id: u.user_id || u.id,
           email: u.email,
           full_name: u.full_name || 'Valued Customer',
         }));

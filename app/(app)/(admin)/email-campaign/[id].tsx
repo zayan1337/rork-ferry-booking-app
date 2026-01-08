@@ -21,13 +21,19 @@ import {
   Pause,
   Trash2,
   Edit,
+  User,
+  ChevronRight,
 } from 'lucide-react-native';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
-import { useEmailCampaignStore } from '@/store/admin/emailCampaignStore';
+import {
+  useEmailCampaignStore,
+  SelectableUser,
+} from '@/store/admin/emailCampaignStore';
 import { useAlertContext } from '@/components/AlertProvider';
 import { formatDateInMaldives } from '@/utils/timezoneUtils';
 import Button from '@/components/admin/Button';
-import { CampaignStatus } from '@/types/emailCampaign';
+import { CampaignStatus, EmailCampaign } from '@/types/emailCampaign';
+import { supabase } from '@/utils/supabase';
 
 export default function EmailCampaignDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -36,8 +42,11 @@ export default function EmailCampaignDetailScreen() {
   const { fetchCampaign, sendCampaign, pauseCampaign, deleteCampaign } =
     useEmailCampaignStore();
 
-  const [campaign, setCampaign] = useState<any>(null);
+  const [campaign, setCampaign] = useState<EmailCampaign | null>(null);
   const [loading, setLoading] = useState(true);
+  const [recipients, setRecipients] = useState<SelectableUser[]>([]);
+  const [loadingRecipients, setLoadingRecipients] = useState(false);
+  const [showAllRecipients, setShowAllRecipients] = useState(false);
 
   useEffect(() => {
     loadCampaign();
@@ -49,6 +58,53 @@ export default function EmailCampaignDetailScreen() {
     const result = await fetchCampaign(id);
     setCampaign(result);
     setLoading(false);
+
+    // Load recipients after campaign is loaded
+    if (result?.target_criteria) {
+      loadRecipients(result.target_criteria);
+    }
+  };
+
+  const loadRecipients = async (targetCriteria: any) => {
+    setLoadingRecipients(true);
+    try {
+      // If specific users are selected
+      if (
+        targetCriteria.selectedUserIds &&
+        targetCriteria.selectedUserIds.length > 0
+      ) {
+        const { data } = await supabase
+          .from('user_profiles')
+          .select('id, email, full_name, role, is_active')
+          .in('id', targetCriteria.selectedUserIds);
+        setRecipients(data || []);
+      }
+      // If all users
+      else if (targetCriteria.allUsers) {
+        const { data } = await supabase
+          .from('user_profiles')
+          .select('id, email, full_name, role, is_active')
+          .eq('is_active', true)
+          .not('email', 'is', null)
+          .limit(20);
+        setRecipients(data || []);
+      }
+      // If specific roles
+      else if (targetCriteria.roles && targetCriteria.roles.length > 0) {
+        const { data } = await supabase
+          .from('user_profiles')
+          .select('id, email, full_name, role, is_active')
+          .eq('is_active', true)
+          .not('email', 'is', null)
+          .in('role', targetCriteria.roles)
+          .limit(20);
+        setRecipients(data || []);
+      }
+    } catch (error) {
+      console.error('Error loading recipients:', error);
+    } finally {
+      setLoadingRecipients(false);
+    }
   };
 
   const getStatusColor = (status: CampaignStatus) => {
@@ -73,9 +129,19 @@ export default function EmailCampaignDetailScreen() {
 
   const handleSendCampaign = () => {
     if (!campaign) return;
+
+    // Get the correct recipient count based on targeting
+    const criteria = campaign.target_criteria;
+    let recipientCount = campaign.total_recipients;
+
+    // If individual users are selected, use that count
+    if (criteria?.selectedUserIds && criteria.selectedUserIds.length > 0) {
+      recipientCount = criteria.selectedUserIds.length;
+    }
+
     showConfirmation(
       'Send Campaign',
-      `Are you sure you want to send "${campaign.name}" to ${campaign.total_recipients} recipients?`,
+      `Are you sure you want to send "${campaign.name}" to ${recipientCount} recipient${recipientCount !== 1 ? 's' : ''}?`,
       async () => {
         const success = await sendCampaign(campaign.id);
         if (success) {
@@ -116,6 +182,11 @@ export default function EmailCampaignDetailScreen() {
       undefined,
       true
     );
+  };
+
+  const handleEditCampaign = () => {
+    if (!campaign) return;
+    router.push(`/email-campaign/edit/${campaign.id}` as any);
   };
 
   if (!canManageSettings()) {
@@ -208,14 +279,48 @@ export default function EmailCampaignDetailScreen() {
     );
   }
 
+  // Get the correct recipient count based on targeting criteria
+  const getActualRecipientCount = () => {
+    const criteria = campaign.target_criteria;
+    if (criteria?.selectedUserIds && criteria.selectedUserIds.length > 0) {
+      return criteria.selectedUserIds.length;
+    }
+    return campaign.total_recipients;
+  };
+
+  const actualRecipientCount = getActualRecipientCount();
+
   const deliveryRate =
-    campaign.total_recipients > 0
-      ? Math.round((campaign.sent_count / campaign.total_recipients) * 100)
+    actualRecipientCount > 0
+      ? Math.round((campaign.sent_count / actualRecipientCount) * 100)
       : 0;
   const openRate =
     campaign.sent_count > 0
       ? Math.round((campaign.opened_count / campaign.sent_count) * 100)
       : 0;
+
+  const getTargetingDescription = () => {
+    const criteria = campaign.target_criteria;
+    if (!criteria) return 'No targeting criteria';
+
+    if (criteria.selectedUserIds && criteria.selectedUserIds.length > 0) {
+      return `${criteria.selectedUserIds.length} individual user(s) selected`;
+    }
+    if (criteria.allUsers) {
+      return 'All active users';
+    }
+    if (criteria.roles && criteria.roles.length > 0) {
+      return `Users with roles: ${criteria.roles.join(', ')}`;
+    }
+    if (criteria.selectedTripIds && criteria.selectedTripIds.length > 0) {
+      return `Users from ${criteria.selectedTripIds.length} trip(s)`;
+    }
+    return 'Custom targeting';
+  };
+
+  const displayedRecipients = showAllRecipients
+    ? recipients
+    : recipients.slice(0, 5);
 
   return (
     <View style={styles.container}>
@@ -290,7 +395,7 @@ export default function EmailCampaignDetailScreen() {
           <View style={styles.statsGrid}>
             <View style={styles.statCard}>
               <Users size={20} color={colors.primary} />
-              <Text style={styles.statValue}>{campaign.total_recipients}</Text>
+              <Text style={styles.statValue}>{actualRecipientCount}</Text>
               <Text style={styles.statLabel}>Recipients</Text>
             </View>
             <View style={styles.statCard}>
@@ -309,6 +414,108 @@ export default function EmailCampaignDetailScreen() {
               <Text style={styles.statLabel}>Clicked</Text>
             </View>
           </View>
+        </View>
+
+        {/* Recipients Section */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>Recipients</Text>
+            <View style={styles.recipientCount}>
+              <Users size={14} color={colors.primary} />
+              <Text style={styles.recipientCountText}>
+                {actualRecipientCount}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.targetingInfo}>
+            <Text style={styles.targetingLabel}>Targeting:</Text>
+            <Text style={styles.targetingValue}>
+              {getTargetingDescription()}
+            </Text>
+          </View>
+
+          {loadingRecipients ? (
+            <ActivityIndicator
+              size='small'
+              color={colors.primary}
+              style={{ marginVertical: 20 }}
+            />
+          ) : recipients.length > 0 ? (
+            <>
+              <View style={styles.recipientsList}>
+                {displayedRecipients.map(user => (
+                  <View key={user.id} style={styles.recipientItem}>
+                    <View style={styles.recipientAvatar}>
+                      <User size={16} color={colors.textSecondary} />
+                    </View>
+                    <View style={styles.recipientInfo}>
+                      <Text style={styles.recipientName}>{user.full_name}</Text>
+                      <Text style={styles.recipientEmail}>{user.email}</Text>
+                    </View>
+                    <View
+                      style={[
+                        styles.recipientRoleBadge,
+                        {
+                          backgroundColor:
+                            user.role === 'admin'
+                              ? `${colors.danger}15`
+                              : user.role === 'agent'
+                                ? `${colors.warning}15`
+                                : `${colors.primary}15`,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.recipientRoleText,
+                          {
+                            color:
+                              user.role === 'admin'
+                                ? colors.danger
+                                : user.role === 'agent'
+                                  ? colors.warning
+                                  : colors.primary,
+                          },
+                        ]}
+                      >
+                        {user.role}
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+
+              {recipients.length > 5 && (
+                <Pressable
+                  style={styles.showMoreButton}
+                  onPress={() => setShowAllRecipients(!showAllRecipients)}
+                >
+                  <Text style={styles.showMoreText}>
+                    {showAllRecipients
+                      ? 'Show Less'
+                      : `Show All (${recipients.length})`}
+                  </Text>
+                  <ChevronRight
+                    size={16}
+                    color={colors.primary}
+                    style={{
+                      transform: [
+                        { rotate: showAllRecipients ? '-90deg' : '90deg' },
+                      ],
+                    }}
+                  />
+                </Pressable>
+              )}
+            </>
+          ) : (
+            <View style={styles.noRecipients}>
+              <Users size={24} color={colors.textSecondary} />
+              <Text style={styles.noRecipientsText}>
+                No recipients to display
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* Content Preview */}
@@ -343,9 +550,7 @@ export default function EmailCampaignDetailScreen() {
                 </Pressable>
                 <Pressable
                   style={styles.actionCard}
-                  onPress={() =>
-                    router.push(`../email-campaign/edit/${campaign.id}` as any)
-                  }
+                  onPress={handleEditCampaign}
                 >
                   <View
                     style={[
@@ -463,11 +668,17 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',
     color: colors.text,
-    marginBottom: 16,
+    marginBottom: 0,
   },
   headerRow: {
     flexDirection: 'row',
@@ -533,6 +744,99 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontSize: 12,
+    color: colors.textSecondary,
+  },
+  recipientCount: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: `${colors.primary}15`,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    gap: 4,
+  },
+  recipientCountText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  targetingInfo: {
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 12,
+  },
+  targetingLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginBottom: 4,
+  },
+  targetingValue: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.text,
+  },
+  recipientsList: {
+    gap: 8,
+  },
+  recipientItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: 10,
+    padding: 12,
+    gap: 10,
+  },
+  recipientAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  recipientInfo: {
+    flex: 1,
+  },
+  recipientName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  recipientEmail: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  recipientRoleBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  recipientRoleText: {
+    fontSize: 10,
+    fontWeight: '600',
+    textTransform: 'capitalize',
+  },
+  showMoreButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    marginTop: 8,
+    gap: 4,
+  },
+  showMoreText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.primary,
+  },
+  noRecipients: {
+    alignItems: 'center',
+    paddingVertical: 24,
+    gap: 8,
+  },
+  noRecipientsText: {
+    fontSize: 14,
     color: colors.textSecondary,
   },
   contentPreview: {

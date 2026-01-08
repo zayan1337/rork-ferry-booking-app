@@ -249,9 +249,18 @@ export const useEmailCampaignStore = create<EmailCampaignState>((set, get) => ({
 
   updateCampaign: async (id: string, updates: Partial<EmailCampaign>) => {
     try {
+      // If target_criteria is being updated, recalculate the recipient count
+      const finalUpdates = { ...updates };
+      if (updates.target_criteria) {
+        const recipientCount = await get().previewRecipientCount(
+          updates.target_criteria
+        );
+        finalUpdates.total_recipients = recipientCount;
+      }
+
       const { error } = await supabase
         .from('email_campaigns')
-        .update(updates)
+        .update(finalUpdates)
         .eq('id', id);
 
       if (error) throw error;
@@ -259,11 +268,11 @@ export const useEmailCampaignStore = create<EmailCampaignState>((set, get) => ({
       // Update local state
       set(state => ({
         campaigns: state.campaigns.map(c =>
-          c.id === id ? { ...c, ...updates } : c
+          c.id === id ? { ...c, ...finalUpdates } : c
         ),
         currentCampaign:
           state.currentCampaign?.id === id
-            ? { ...state.currentCampaign, ...updates }
+            ? { ...state.currentCampaign, ...finalUpdates }
             : state.currentCampaign,
       }));
 
@@ -476,6 +485,16 @@ export const useEmailCampaignStore = create<EmailCampaignState>((set, get) => ({
   previewRecipientCount: async (criteria: TargetCriteria) => {
     set(state => ({ loading: { ...state.loading, recipientCount: true } }));
     try {
+      // If selectedUserIds is provided (individual selection mode)
+      if (criteria.selectedUserIds && criteria.selectedUserIds.length > 0) {
+        const recipientCount = criteria.selectedUserIds.length;
+        set({
+          recipientPreviewCount: recipientCount,
+          loading: { ...get().loading, recipientCount: false },
+        });
+        return recipientCount;
+      }
+
       // If allUsers is true, count all active users
       if (criteria.allUsers) {
         const { count, error } = await supabase
@@ -494,30 +513,37 @@ export const useEmailCampaignStore = create<EmailCampaignState>((set, get) => ({
         return recipientCount;
       }
 
-      // Use the database function to count recipients
-      const { data, error } = await supabase.rpc('count_campaign_recipients', {
-        criteria: criteria,
-      });
-
-      if (error) {
-        // Fallback: count based on roles only
-        let query = supabase
+      // If roles are specified, count users with those roles
+      if (criteria.roles && criteria.roles.length > 0) {
+        const { count, error } = await supabase
           .from('user_profiles')
           .select('*', { count: 'exact', head: true })
           .eq('is_active', true)
-          .not('email', 'is', null);
+          .not('email', 'is', null)
+          .in('role', criteria.roles);
 
-        if (criteria.roles && criteria.roles.length > 0) {
-          query = query.in('role', criteria.roles);
-        }
+        if (error) throw error;
 
-        const { count } = await query;
         const recipientCount = count || 0;
         set({
           recipientPreviewCount: recipientCount,
           loading: { ...get().loading, recipientCount: false },
         });
         return recipientCount;
+      }
+
+      // Try using the database function for complex criteria
+      const { data, error } = await supabase.rpc('count_campaign_recipients', {
+        criteria: criteria,
+      });
+
+      if (error) {
+        // No specific criteria, return 0
+        set({
+          recipientPreviewCount: 0,
+          loading: { ...get().loading, recipientCount: false },
+        });
+        return 0;
       }
 
       const recipientCount = data || 0;
